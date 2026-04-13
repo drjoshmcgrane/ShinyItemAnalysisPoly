@@ -323,11 +323,9 @@ DDplot <- function(Data, item.names, discrim = "ULI", k = 3, l = 1, u = 3,
       theme_app() +
       theme(
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-        legend.position = "inside",
-        legend.position.inside = c(0.01, 0.88),
-        legend.justification = c(0, 1),
-        legend.spacing.x = unit(0.1, "cm"),
-        legend.background = element_rect(fill = "white", colour = NA)
+        legend.position = "top",
+        legend.justification = "left",
+        legend.spacing.x = unit(0.1, "cm")
       )
 
     if (!is.null(thr)) {
@@ -366,11 +364,9 @@ DDplot <- function(Data, item.names, discrim = "ULI", k = 3, l = 1, u = 3,
       theme_app() +
       theme(
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-        legend.position = "inside",
-        legend.position.inside = c(0.01, 0.88),
-        legend.justification = c(0, 1),
-        legend.spacing.x = unit(0.1, "cm"),
-        legend.background = element_rect(fill = "white", colour = NA)
+        legend.position = "top",
+        legend.justification = "left",
+        legend.spacing.x = unit(0.1, "cm")
       )
   }
   g
