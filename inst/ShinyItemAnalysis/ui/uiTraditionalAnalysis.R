@@ -14,8 +14,8 @@ uiTraditionalAnalysis <- navbarMenu(
                                                divided by its range. Below you can change the estimate of difficulty to the average score of the item. For binary
                                                items both estimates are equivalent and can be interpreted as the percentage of respondents who answered the item correctly. ",
       br(),
-      strong("Discrimination"), " is by default estimated as the coRrelation between Item and Total score (RIT index). Other
-                                               options for the discrimination index include coRrelation between Item and total score based on Rest of the items (RIR index).
+      strong("Discrimination"), " is by default estimated as the correlation between Item and Total score (RIT index). Other
+                                               options for the discrimination index include correlation between Item and total score based on Rest of the items (RIR index).
                                                Discrimination can also be estimated as the difference in (scaled) item score
                                                in the upper and lower third of the respondents (Upper-Lower Index, ULI). ULI can be further customized by changing the number of
                                                groups and by changing which groups should be compared (see also Martinkova, Stepanek et al., 2017). By a rule of thumb, all items with a discrimination
