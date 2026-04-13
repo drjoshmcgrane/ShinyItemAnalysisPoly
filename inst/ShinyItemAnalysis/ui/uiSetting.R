@@ -44,7 +44,7 @@ uiSetting <-
         max = 600
       ))
     ),
-    if (sm_allow_gui_installation() & !ShinyItemAnalysis:::sm_disabled()) {
+    if (sm_allow_gui_installation() & !ShinyItemAnalysisPoly:::sm_disabled()) {
       tagList(
         h4("Modules"),
         p("You can add newly installed modules without restarting the app."),

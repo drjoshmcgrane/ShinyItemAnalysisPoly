@@ -365,7 +365,7 @@ output$regression_logistic_IRT_coef <- renderTable(
     item <- input$regression_logistic_IRT_item_slider
 
     # delta method
-    tab_se <- ShinyItemAnalysis:::delta_ses(
+    tab_se <- ShinyItemAnalysisPoly:::delta_ses(
       list(~x2, ~ -x1 / x2),
       mean = tab_coef_old,
       cov = vcov(fit)
@@ -1131,7 +1131,7 @@ regression_cumulative_coef <- reactive({
     )
     formula <- lapply(formula, as.formula)
 
-    tab_se <- ShinyItemAnalysis:::delta_ses(
+    tab_se <- ShinyItemAnalysisPoly:::delta_ses(
       formula,
       mean = tab_coef_old,
       cov = vcov(fit[[item]])
@@ -1345,7 +1345,7 @@ output$regression_adjacent_coef <- renderTable(
       )
       formula <- lapply(formula, as.formula)
 
-      tab_se <- ShinyItemAnalysis:::delta_ses(
+      tab_se <- ShinyItemAnalysisPoly:::delta_ses(
         formula,
         mean = tab_coef_old,
         cov = vcov(fit)
@@ -1647,7 +1647,7 @@ output$regression_multinomial_coef <- renderTable(
       }
 
       se_tab <- if (is.null(dim(coef_si))) {
-        matrix(ShinyItemAnalysis:::delta_ses(
+        matrix(ShinyItemAnalysisPoly:::delta_ses(
           list(~ -x1 / x2, ~x2),
           mean = unlist(coef_si),
           cov = varcov
@@ -1657,7 +1657,7 @@ output$regression_multinomial_coef <- renderTable(
           rownames(coef_si),
           function(.x) {
             vcov_subset <- subst_vcov(varcov, .x)
-            ShinyItemAnalysis:::delta_ses(
+            ShinyItemAnalysisPoly:::delta_ses(
               list(~ -x1 / x2, ~x2),
               mean = coef_si[.x, ],
               cov = vcov_subset

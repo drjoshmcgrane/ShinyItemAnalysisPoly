@@ -1,6 +1,6 @@
 # discover installed modules ----------------------------------------------
 
-if (!ShinyItemAnalysis:::sm_disabled()) {
+if (!ShinyItemAnalysisPoly:::sm_disabled()) {
   # keep track of loaded and appended mods in particular session
   # (so every user gets modules tabs appended in his/her instance)
   # we manipulate this object with add_modules()
@@ -42,7 +42,7 @@ if (!ShinyItemAnalysis:::sm_disabled()) {
     # obtain available module packages from SIA repo
     # available.packages are cached per R session
     observe({
-      available <- ShinyItemAnalysis:::sm_not_installed()
+      available <- ShinyItemAnalysisPoly:::sm_not_installed()
 
       if (length(available) == 0) {
         available <- c("All available modules were installed" = "")
@@ -59,7 +59,7 @@ if (!ShinyItemAnalysis:::sm_disabled()) {
 
       # validate input to be safe
       pkgs_on_repo <- available.packages(
-        repos = ShinyItemAnalysis:::sm_repo(),
+        repos = ShinyItemAnalysisPoly:::sm_repo(),
         fields = "Config/ShinyItemAnalysis/module"
       )
 
@@ -83,7 +83,7 @@ if (!ShinyItemAnalysis:::sm_disabled()) {
         return()
       }
 
-      # if (sel_mod %in% ShinyItemAnalysis:::pkgs_attached()) {
+      # if (sel_mod %in% ShinyItemAnalysisPoly:::pkgs_attached()) {
       #   showModal(
       #     modalDialog(
       #       title = "Selected SIA module is in use",
@@ -95,7 +95,7 @@ if (!ShinyItemAnalysis:::sm_disabled()) {
       # }
 
       rlang::try_fetch(
-        ShinyItemAnalysis:::sm_install_pkg(sel_mod),
+        ShinyItemAnalysisPoly:::sm_install_pkg(sel_mod),
         error = function(cnd) {
           showModal(
             modalDialog(
@@ -118,7 +118,7 @@ if (!ShinyItemAnalysis:::sm_disabled()) {
         ui_dots = list() # no use for now, maybe completely useless?
       )
 
-      available <- ShinyItemAnalysis:::sm_not_installed()
+      available <- ShinyItemAnalysisPoly:::sm_not_installed()
 
       if (length(available) == 0L) {
         available <- c("All available modules were installed" = "")

@@ -277,7 +277,7 @@ itemanalysis_table <- reactive({
       "Missed [%]" = Perc.miss,
       "Not-reached [%]" = Perc.nr
     ) |>
-    ShinyItemAnalysis:::remove_empty_cols()
+    ShinyItemAnalysisPoly:::remove_empty_cols()
 
   row.names(tab) <- item_names()
   tab

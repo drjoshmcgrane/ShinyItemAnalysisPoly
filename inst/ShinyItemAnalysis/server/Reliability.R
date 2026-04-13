@@ -337,7 +337,7 @@ output$DB_reliability_splithalf_histogram <- downloadHandler(
 reliability_cronbachalpha_table_Input <- reactive({
   data <- ordinal()
 
-  a <- ShinyItemAnalysis:::cronbach_alpha(data)
+  a <- ShinyItemAnalysisPoly:::cronbach_alpha(data)
 
   tab <- data.table(
     "Estimate" = sprintf("%.3f", a$estimate),

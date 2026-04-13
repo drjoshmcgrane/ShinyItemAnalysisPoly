@@ -787,7 +787,7 @@ IRT_binary_summary_wrightmap_args <- reactive({
 
 output$IRT_binary_summary_wrightmap <- renderPlotly({
   # use internal Wright Map fun, returning separate "facets" in a list
-  plts <- ShinyItemAnalysis:::gg_wright_internal(
+  plts <- ShinyItemAnalysisPoly:::gg_wright_internal(
     theta = IRT_binary_summary_wrightmap_args()[[1]],
     b = IRT_binary_summary_wrightmap_args()[[2]],
     item.names = item_names()

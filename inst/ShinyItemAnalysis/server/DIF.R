@@ -142,8 +142,8 @@ DIF_total_table <- reactive({
           Mean = ~ mean(.x, na.rm = TRUE),
           Median = ~ median(.x, na.rm = TRUE),
           SD = ~ sd(.x, na.rm = TRUE),
-          Skewness = ~ ShinyItemAnalysis:::skewness(.x),
-          Kurtosis = ~ ShinyItemAnalysis:::kurtosis(.x)
+          Skewness = ~ ShinyItemAnalysisPoly:::skewness(.x),
+          Kurtosis = ~ ShinyItemAnalysisPoly:::kurtosis(.x)
         ),
         .names = "{.fn}"
       )
@@ -698,7 +698,7 @@ DIF_MH_model <- reactive({
   group <- unlist(group())
   data <- data.frame(binary())
 
-  fit <- ShinyItemAnalysis:::.difMH_edited(
+  fit <- ShinyItemAnalysisPoly:::.difMH_edited(
     Data = data, group = group, focal.name = 1,
     p.adjust.method = input$DIF_MH_summary_correction,
     purify = input$DIF_MH_summary_purification, puriadjType = input$DIF_MH_summary_combination
@@ -1022,7 +1022,7 @@ report_DIF_MH_model <- reactive({
     p.adjust.method_report <- input$report_DIF_MH_correction_method
     purify_report <- input$report_DIF_MH_purification
 
-    fit <- ShinyItemAnalysis:::.difMH_edited(
+    fit <- ShinyItemAnalysisPoly:::.difMH_edited(
       Data = data, group = group, focal.name = 1,
       p.adjust.method = p.adjust.method_report,
       purify = purify_report
@@ -1087,7 +1087,7 @@ DIF_SIBTEST_model <- reactive({
     errorClass = "validation-error"
   )
 
-  fit <- ShinyItemAnalysis:::.difSIBTEST_edited(
+  fit <- ShinyItemAnalysisPoly:::.difSIBTEST_edited(
     Data = data, group = group, focal.name = 1,
     type = input$DIF_SIBTEST_type,
     purify = input$DIF_SIBTEST_purification,
@@ -1577,7 +1577,7 @@ DIF_logistic_model <- reactive({
   }
 
   fit <- tryCatch(
-    ShinyItemAnalysis:::.difLogistic_edited(
+    ShinyItemAnalysisPoly:::.difLogistic_edited(
       Data = data, group = group, match = match, focal.name = 1,
       type = input$DIF_logistic_summary_type,
       p.adjust.method = input$DIF_logistic_summary_correction,
@@ -1710,7 +1710,7 @@ DIF_logistic_summary_coef <- reactive({
       )
       vcov_tmp[nams, nams] <- list_vcov[[i]]
 
-      ShinyItemAnalysis:::delta_ses(
+      ShinyItemAnalysisPoly:::delta_ses(
         list(~x2, ~ -x1 / x2, ~x4, ~ (x1 * x4 - x2 * x3) / (x2 * (x2 + x4))),
         mean = tab_coef[i, ],
         cov = vcov_tmp
@@ -2070,7 +2070,7 @@ report_DIF_logistic_model <- reactive({
     correction_report <- input$correction_method_log_report
     purify_report <- input$puri_LR_report
 
-    fit <- ShinyItemAnalysis:::.difLogistic_edited(
+    fit <- ShinyItemAnalysisPoly:::.difLogistic_edited(
       Data = data, group = group, focal.name = 1,
       type = type_report,
       p.adjust.method = correction_report,
@@ -3068,19 +3068,19 @@ DIF_Lord_method <- reactive({
 
   fit <- tryCatch(
     switch(input$DIF_Lord_summary_model,
-      "1PL" = ShinyItemAnalysis:::.difLord_edited(
+      "1PL" = ShinyItemAnalysisPoly:::.difLord_edited(
         Data = data, group = group, focal.name = 1,
         model = "1PL",
         p.adjust.method = input$DIF_Lord_summary_correction,
         purify = input$DIF_Lord_summary_purification
       ),
-      "2PL" = ShinyItemAnalysis:::.difLord_edited(
+      "2PL" = ShinyItemAnalysisPoly:::.difLord_edited(
         Data = data, group = group, focal.name = 1,
         model = "2PL",
         p.adjust.method = input$DIF_Lord_summary_correction,
         purify = input$DIF_Lord_summary_purification
       ),
-      "3PL" = ShinyItemAnalysis:::.difLord_edited(
+      "3PL" = ShinyItemAnalysisPoly:::.difLord_edited(
         Data = data, group = group, focal.name = 1,
         model = "3PL", c = guess,
         p.adjust.method = input$DIF_Lord_summary_correction,
@@ -3797,19 +3797,19 @@ DIF_Raju_method <- reactive({
 
   fit <- tryCatch(
     switch(input$DIF_Raju_summary_model,
-      "1PL" = ShinyItemAnalysis:::.difRaju_edited(
+      "1PL" = ShinyItemAnalysisPoly:::.difRaju_edited(
         Data = data, group = group, focal.name = 1,
         model = "1PL",
         p.adjust.method = input$DIF_Raju_summary_correction,
         purify = input$DIF_Raju_summary_purification
       ),
-      "2PL" = ShinyItemAnalysis:::.difRaju_edited(
+      "2PL" = ShinyItemAnalysisPoly:::.difRaju_edited(
         Data = data, group = group, focal.name = 1,
         model = "2PL",
         p.adjust.method = input$DIF_Raju_summary_correction,
         purify = input$DIF_Raju_summary_purification
       ),
-      "3PL" = ShinyItemAnalysis:::.difRaju_edited(
+      "3PL" = ShinyItemAnalysisPoly:::.difRaju_edited(
         Data = data, group = group, focal.name = 1,
         model = "3PL", c = guess,
         p.adjust.method = input$DIF_Raju_summary_correction,
