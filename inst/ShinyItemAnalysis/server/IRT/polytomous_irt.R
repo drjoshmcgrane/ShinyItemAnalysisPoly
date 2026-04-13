@@ -428,3 +428,154 @@ output$IRT_poly_summary_tic_download <- downloadHandler(
     )
   }
 )
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * ABILITY ESTIMATES ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+IRT_poly_summary_fscores_zscores <- reactive({
+  fit <- IRT_poly_model()
+  fscore_with_ses <- fscores(fit, full.scores.SE = TRUE)
+  colnames(fscore_with_ses) <- c("F-score", "SE(F-score)")
+
+  tab <- data.frame(
+    `Total score` = total_score(),
+    `Z-score` = z_score(),
+    `T-score` = t_score(),
+    fscore_with_ses,
+    check.names = FALSE
+  )
+
+  rownames(tab) <- paste("Respondent", 1L:nrow(tab))
+  tab
+})
+
+output$IRT_poly_summary_ability <- renderTable(
+  {
+    factors <- IRT_poly_summary_fscores_zscores()
+    head(factors, n = 6)
+  },
+  rownames = TRUE
+)
+
+output$IRT_poly_summary_ability_download <- downloadHandler(
+  filename = function() {
+    paste0("IRT_poly_", input$IRT_poly_model, "_abilities.csv")
+  },
+  content = function(file) {
+    write.csv(IRT_poly_summary_fscores_zscores(), file)
+  }
+)
+
+# ** Correlation text ####
+IRT_poly_summary_ability_correlation <- reactive({
+  tab <- IRT_poly_summary_fscores_zscores()
+  cor(tab[["F-score"]], tab[["Z-score"]], use = "pairwise.complete.obs")
+})
+
+output$IRT_poly_summary_ability_correlation_text <- renderText({
+  paste0(
+    "This scatterplot shows the relationship between the standardized total ",
+    "score (Z-score) and the factor score estimated by the IRT model. The ",
+    "Pearson correlation coefficient between these two scores is ",
+    sprintf("%.3f", IRT_poly_summary_ability_correlation()), ". "
+  )
+})
+
+# ** Scatterplot ####
+IRT_poly_summary_ability_plot <- reactive({
+  df <- IRT_poly_summary_fscores_zscores()
+
+  ggplot(df, aes(`Z-score`, `F-score`)) +
+    geom_point(size = 3) +
+    labs(x = "Standardized total score", y = "Factor score") +
+    theme_app()
+})
+
+output$IRT_poly_summary_ability_plot <- renderPlotly({
+  g <- IRT_poly_summary_ability_plot()
+  p <- ggplotly(g)
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_summary_ability_plot_download <- downloadHandler(
+  filename = function() {
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_abilities.png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_summary_ability_plot() +
+        theme(text = element_text(size = setting_figures$text_size)),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
+
+
+# ** Wright map (PCM and RSM only) ####
+IRT_poly_summary_wrightmap_args <- reactive({
+  fit <- IRT_poly_model()
+  fscore <- as.vector(fscores(fit))
+
+  pars <- coef(fit, simplify = TRUE)$items
+  d_cols <- grep("^d", colnames(pars))
+  b <- pars[, d_cols, drop = FALSE]
+
+  item.names <- item_names()
+
+  list(theta = fscore, b = b, item.names = item.names)
+})
+
+output$IRT_poly_summary_wrightmap <- renderPlotly({
+  args <- IRT_poly_summary_wrightmap_args()
+
+  b_matrix <- args$b
+  step_labels <- paste0(
+    rep(args$item.names, each = ncol(b_matrix)),
+    " Step ", rep(1:ncol(b_matrix), times = nrow(b_matrix))
+  )
+  b_vec <- as.vector(t(b_matrix))
+
+  valid <- !is.na(b_vec)
+  b_vec <- b_vec[valid]
+  step_labels <- step_labels[valid]
+
+  plts <- ShinyItemAnalysis:::gg_wright_internal(
+    theta = args$theta,
+    b = b_vec,
+    item.names = step_labels
+  )
+
+  plt_left <- plts[[1]] |> ggplotly()
+  plt_right <- plts[[2]] |> ggplotly() |>
+    layout(yaxis = list(side = "right"))
+
+  subplot(plt_left, plt_right, titleY = TRUE, margin = 0) |>
+    plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_summary_wrightmap_download <- downloadHandler(
+  filename = function() {
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_WrightMap.png")
+  },
+  content = function(file) {
+    args <- IRT_poly_summary_wrightmap_args()
+    b_matrix <- args$b
+    b_vec <- as.vector(t(b_matrix))
+    step_labels <- paste0(
+      rep(args$item.names, each = ncol(b_matrix)),
+      " Step ", rep(1:ncol(b_matrix), times = nrow(b_matrix))
+    )
+    valid <- !is.na(b_vec)
+    ggsave(file,
+      plot = ggWrightMap(args$theta, b_vec[valid], item.names = step_labels[valid]),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
