@@ -775,3 +775,97 @@ output$IRT_poly_items_coef <- renderTable(
   IRT_poly_items_coef(),
   rownames = TRUE, striped = TRUE, na = ""
 )
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * MODEL COMPARISON ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# ** Convergence check ####
+output$IRT_poly_comparison_model_converged <- renderUI({
+  fitGRM <- IRT_poly_model_grm()
+  fitRSM <- IRT_poly_model_rsm()
+  fitPCM <- IRT_poly_model_pcm()
+  fitGPCM <- IRT_poly_model_gpcm()
+
+  txt_grm <- ifelse(extract.mirt(fitGRM, "converged"), "",
+    "Estimation process in the <b>GRM</b> terminated without convergence. <br>")
+  txt_rsm <- ifelse(extract.mirt(fitRSM, "converged"), "",
+    "Estimation process in the <b>RSM</b> terminated without convergence. <br>")
+  txt_pcm <- ifelse(extract.mirt(fitPCM, "converged"), "",
+    "Estimation process in the <b>PCM</b> terminated without convergence. <br>")
+  txt_gpcm <- ifelse(extract.mirt(fitGPCM, "converged"), "",
+    "Estimation process in the <b>GPCM</b> terminated without convergence. <br>")
+
+  txt <- paste0(txt_grm, txt_rsm, txt_pcm, txt_gpcm)
+  if (txt != "") {
+    txt <- paste0(
+      "<font color = 'orange'>", txt,
+      "Estimates are not reliable. Try to increase a number of iterations ",
+      "of the EM algorithm in Settings. </font>"
+    )
+  }
+  HTML(txt)
+})
+
+# ** Information criteria table ####
+IRT_poly_comparison <- reactive({
+  fitRSM <- IRT_poly_model_rsm()
+  fitPCM <- IRT_poly_model_pcm()
+  fitGPCM <- IRT_poly_model_gpcm()
+  fitGRM <- IRT_poly_model_grm()
+
+  df <- anova(fitRSM, fitPCM, fitGPCM, fitGRM)
+  df <- round(df, 3)
+  df <- df[, c("AIC", "BIC", "logLik")]
+
+  nam <- c("RSM", "PCM", "GPCM", "GRM")
+  rownames(df) <- nam
+
+  best_row <- c(
+    nam[which.min(df[, "AIC"])],
+    nam[which.min(df[, "BIC"])],
+    ""
+  )
+  df <- rbind(df, best_row)
+  rownames(df)[nrow(df)] <- "BEST"
+
+  df
+})
+
+output$IRT_poly_comparison <- renderTable(
+  IRT_poly_comparison(),
+  rownames = TRUE, striped = TRUE
+)
+
+# ** LRT: RSM vs PCM ####
+IRT_poly_lrt_rsm_pcm <- reactive({
+  fitRSM <- IRT_poly_model_rsm()
+  fitPCM <- IRT_poly_model_pcm()
+
+  lrt <- anova(fitRSM, fitPCM)
+  lrt <- round(lrt, 3)
+  rownames(lrt) <- c("RSM", "PCM")
+  lrt
+})
+
+output$IRT_poly_lrt_rsm_pcm <- renderTable(
+  IRT_poly_lrt_rsm_pcm(),
+  rownames = TRUE, striped = TRUE
+)
+
+# ** LRT: PCM vs GPCM ####
+IRT_poly_lrt_pcm_gpcm <- reactive({
+  fitPCM <- IRT_poly_model_pcm()
+  fitGPCM <- IRT_poly_model_gpcm()
+
+  lrt <- anova(fitPCM, fitGPCM)
+  lrt <- round(lrt, 3)
+  rownames(lrt) <- c("PCM", "GPCM")
+  lrt
+})
+
+output$IRT_poly_lrt_pcm_gpcm <- renderTable(
+  IRT_poly_lrt_pcm_gpcm(),
+  rownames = TRUE, striped = TRUE
+)
