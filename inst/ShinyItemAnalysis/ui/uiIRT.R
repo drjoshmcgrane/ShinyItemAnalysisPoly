@@ -69,16 +69,6 @@ uiIRT <- navbarMenu(
             )
           )
         ),
-        fluidRow(
-          column(
-            3,
-            checkboxInput(
-              inputId = "IRT_binary_summary_show_observed",
-              label = "Show observed proportions",
-              value = FALSE
-            )
-          )
-        ),
         uiOutput("IRT_binary_summary_model_description"),
         uiOutput("IRT_binary_summary_icc_equation", inline = TRUE),
         uiOutput("IRT_binary_summary_iic_equation", inline = TRUE),
@@ -329,12 +319,8 @@ uiIRT <- navbarMenu(
   ),
   "----",
   "Polytomous models",
-  uiPolyIRT,           # NRM
-  uiPolyIRTGRM,        # GRM as separate tab
-  uiPolyIRTRSM,        # RSM as separate tab
-  uiPolyIRTPCM,        # PCM as separate tab
-  uiPolyIRTGPCM,       # GPCM as separate tab
-  uiPolyIRTComparison, # comparison tab
+  uiPolyIRTModels,     # Unified polytomous models with dropdown (NRM, GRM, RSM, PCM, GPCM)
+  uiPolyIRTComparison, # Polytomous model comparison
   "----",
   "Training",
   # * TRAINING  ####

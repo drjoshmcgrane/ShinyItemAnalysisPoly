@@ -429,32 +429,6 @@ IRT_binary_summary_icc <- reactive({
     ylab("Probability of correct answer") +
     theme_app()
 
-  # Overlay observed proportions if toggled on
-  if (isTRUE(input$IRT_binary_summary_show_observed)) {
-    data <- binary()
-    fs <- as.vector(fscores(fit))
-    n_bins <- 10
-    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
-                include.lowest = TRUE)
-    bin_mids <- tapply(fs, bins, mean)
-
-    obs_df <- map2_dfr(
-      seq_len(ncol(data)),
-      item_names(),
-      ~ {
-        obs_prop <- tapply(data[[.x]], bins, mean, na.rm = TRUE)
-        tibble(
-          Ability = as.numeric(bin_mids),
-          Probability = as.numeric(obs_prop),
-          Item = .y
-        )
-      }
-    )
-    obs_df$Item <- factor(obs_df$Item, levels = item_names())
-    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Probability, color = Item),
-                        size = 2, alpha = 0.7)
-  }
-
   g
 })
 
