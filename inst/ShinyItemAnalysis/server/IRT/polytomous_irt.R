@@ -241,3 +241,190 @@ output$IRT_poly_summary_coef_download <- downloadHandler(
     write.csv(IRT_poly_summary_coef(), file)
   }
 )
+
+# ** Theta grid for plots ####
+IRT_thetas_for_plots <- reactive({
+  seq(-4, 4, length.out = 501)
+})
+
+
+# ** Expected item score curves (Summary) ####
+IRT_poly_summary_expected <- reactive({
+  fit <- IRT_poly_model()
+  thetas <- IRT_thetas_for_plots()
+  mod_item_names <- fit@Data$data |> colnames()
+
+  d <- map2_dfr(
+    mod_item_names,
+    item_names(),
+    ~ {
+      probs <- probtrace(extract.item(fit, .x), thetas)
+      n_cats <- ncol(probs)
+      exp_score <- probs %*% (0:(n_cats - 1))
+      tibble(
+        Ability = thetas,
+        Expected = as.numeric(exp_score),
+        Item = .y
+      )
+    }
+  )
+  d$Item <- factor(d$Item, levels = item_names())
+
+  g <- d |> ggplot(aes(x = Ability, y = Expected, color = Item)) +
+    geom_line() +
+    ylab("Expected item score") +
+    theme_app()
+
+  # Overlay observed mean scores if toggled on
+  if (isTRUE(input$IRT_poly_show_observed)) {
+    data <- ordinal()
+    fs <- as.vector(fscores(fit))
+    n_bins <- 10
+    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
+                include.lowest = TRUE)
+    bin_mids <- tapply(fs, bins, mean)
+
+    obs_df <- map2_dfr(
+      seq_len(ncol(data)),
+      item_names(),
+      ~ {
+        obs_mean <- tapply(data[[.x]], bins, mean, na.rm = TRUE)
+        tibble(
+          Ability = as.numeric(bin_mids),
+          Expected = as.numeric(obs_mean),
+          Item = .y
+        )
+      }
+    )
+    obs_df$Item <- factor(obs_df$Item, levels = item_names())
+    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Expected, color = Item),
+                        size = 2, alpha = 0.7)
+  }
+
+  g
+})
+
+output$IRT_poly_summary_expected <- renderPlotly({
+  g <- IRT_poly_summary_expected()
+  p <- ggplotly(g)
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_summary_expected_download <- downloadHandler(
+  filename = function() {
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_expected.png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_summary_expected() +
+        theme(
+          text = element_text(size = setting_figures$text_size),
+          legend.position = "right", legend.key.size = unit(0.8, "lines")
+        ),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
+
+
+# ** Item information curves (Summary) ####
+IRT_poly_summary_iic <- reactive({
+  fit <- IRT_poly_model()
+  thetas <- IRT_thetas_for_plots()
+  mod_item_names <- fit@Data$data |> colnames()
+
+  d <- map2_dfr(
+    mod_item_names,
+    item_names(),
+    ~ tibble(
+      Ability = thetas,
+      Information = iteminfo(extract.item(fit, .x), thetas),
+      Item = .y
+    )
+  )
+  d$Item <- factor(d$Item, levels = item_names())
+
+  g <- d |> ggplot(aes(x = Ability, y = Information, color = Item)) +
+    geom_line() +
+    theme_app()
+  g
+})
+
+output$IRT_poly_summary_iic <- renderPlotly({
+  g <- IRT_poly_summary_iic()
+  p <- ggplotly(g)
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_summary_iic_download <- downloadHandler(
+  filename = function() {
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_IIC.png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_summary_iic() +
+        theme(
+          text = element_text(size = setting_figures$text_size),
+          legend.position = "right", legend.key.size = unit(0.8, "lines")
+        ),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
+
+
+# ** Test information curve and SE (Summary) ####
+IRT_poly_summary_tic <- reactive({
+  fit <- IRT_poly_model()
+  thetas <- IRT_thetas_for_plots()
+
+  test_info_se <- tibble(
+    Ability = thetas,
+    Information = testinfo(fit, thetas),
+    SE = 1 / sqrt(Information)
+  )
+
+  g <- ggplot(test_info_se, aes(x = Ability)) +
+    geom_line(aes(y = Information, col = "info")) +
+    geom_line(aes(y = SE, col = "se")) +
+    scale_color_manual("", values = c("blue", "pink"), labels = c("Information", "SE")) +
+    scale_y_continuous("Information", sec.axis = sec_axis(~., name = "SE")) +
+    theme(axis.title.y = element_text(color = "pink")) +
+    theme_app()
+  g
+})
+
+output$IRT_poly_summary_tic <- renderPlotly({
+  g <- IRT_poly_summary_tic()
+  p <- ggplotly(g)
+
+  p$x$data[[1]]$text <- gsub("<br />colour: info", "", p$x$data[[1]]$text)
+  p$x$data[[2]]$text <- gsub("<br />colour: se", "", p$x$data[[2]]$text)
+
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_summary_tic_download <- downloadHandler(
+  filename = function() {
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_TIC.png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_summary_tic() +
+        theme(
+          text = element_text(size = setting_figures$text_size),
+          legend.position = "right", legend.key.size = unit(0.8, "lines")
+        ),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
