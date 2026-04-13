@@ -648,7 +648,6 @@ IRT_poly_wrightmap_args_reactive <- reactive({
   fscore <- as.vector(fscores(fit))
   pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
   b_cols <- grep("^b\\d", colnames(pars))
-  req(length(b_cols) > 0)
 
   if (model == "RSM") {
     # RSM: shared thresholds b_j + item-specific location c.
@@ -683,7 +682,7 @@ IRT_poly_wrightmap_plots <- reactive({
   n_steps <- ncol(b_matrix)
 
   # Build data frame of thresholds: one row per item-step
-  df_list <- lapply(seq_along(inames), function(i) {
+  df_b <- do.call(rbind, lapply(seq_along(inames), function(i) {
     steps <- b_matrix[i, ]
     valid <- !is.na(steps)
     if (!any(valid)) return(NULL)
@@ -693,9 +692,7 @@ IRT_poly_wrightmap_plots <- reactive({
       Difficulty = as.numeric(steps[valid]),
       stringsAsFactors = FALSE
     )
-  })
-  df_b <- do.call(rbind, df_list)
-  req(!is.null(df_b) && nrow(df_b) > 0)
+  }))
   df_b$Item <- factor(df_b$Item, levels = inames)
 
   binwidth <- 0.5
