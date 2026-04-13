@@ -364,6 +364,21 @@ IRT_poly_summary_coef_reactive <- reactive({
     }
   }
 
+  # Italicise parameter names to match dichotomous table style
+  mathit <- function(x) {
+    ifelse(
+      grepl("^SE\\(", x),
+      sub("^SE\\((.+)\\)$", "SE(\\\\(\\\\mathit{\\1}\\\\))", x),
+      paste0("\\(\\mathit{", x, "}\\)")
+    )
+  }
+  nms <- colnames(tab)
+  # Only apply to parameter/SE columns, not fit stats or Location
+  par_se_cols <- !nms %in% c("SX2-value", "df", "p-value", "Outfit MNSQ", "Infit MNSQ",
+                             "Location", "SE(Location)")
+  nms[par_se_cols] <- mathit(nms[par_se_cols])
+  colnames(tab) <- nms
+
   tab_fit <- tryCatch(
     itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
     error = function(e) NULL
