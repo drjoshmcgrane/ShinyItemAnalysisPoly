@@ -283,6 +283,21 @@ IRT_poly_summary_coef_reactive <- reactive({
   }
   par_tab <- coef(fit, IRTpars = use_irt, simplify = TRUE)$items
 
+  # For mixed-category data (e.g., PCM/GPCM/GRM): binary items get a,b,g,u columns
+  # while polytomous items get a,b1,b2,... Move binary 'b' into 'b1' and drop b,g,u
+  # (keep 'a' for GPCM/GRM where it is the discrimination parameter)
+  if (model %in% c("PCM", "GPCM", "GRM") && "b" %in% colnames(par_tab) && "b1" %in% colnames(par_tab)) {
+    b_col <- par_tab[, "b"]
+    b1_col <- par_tab[, "b1"]
+    # For binary items: b has a value, b1 is NA; copy b into b1
+    needs_copy <- !is.na(b_col) & is.na(b1_col)
+    par_tab[needs_copy, "b1"] <- b_col[needs_copy]
+    # Drop columns that are fixed/uninformative: b, g, u always; a only for PCM (always 1)
+    drop_cols <- intersect(c("b", "g", "u"), colnames(par_tab))
+    if (model == "PCM") drop_cols <- c(drop_cols, intersect("a", colnames(par_tab)))
+    par_tab <- par_tab[, !colnames(par_tab) %in% drop_cols, drop = FALSE]
+  }
+
   # For RSM: thresholds (b1, b2, ...) are shared across items.
   # Keep only the item-specific location parameter (c) and rename it.
   if (model == "RSM") {
@@ -307,11 +322,30 @@ IRT_poly_summary_coef_reactive <- reactive({
       colnames(se_tab) <- "SE(Location)"
       tab <- data.frame(par_tab, se_tab)
     } else {
+      # Column names in par_tab after any mixed-category cleanup
+      keep_cols <- colnames(par_tab)
       se_tab <- do.call(rbind, lapply(seq_along(se_list), function(i) {
         se_row <- se_list[[i]]["SE", ]
-        length(se_row) <- ncol(par_tab)
-        se_row
+        se_names <- names(se_row)
+        # For mixed-category data: apply same column logic as par_tab
+        # Binary items have a,b,g,u; polytomous have a,b1,b2,...
+        # If we dropped a,b,g,u from par_tab, match by name instead of truncating
+        if ("b" %in% se_names && !("b" %in% keep_cols) && "b1" %in% keep_cols) {
+          # This is a binary item with b but no b1 in its SE row; copy b -> b1
+          if (!"b1" %in% se_names) {
+            se_row["b1"] <- se_row["b"]
+          } else if (is.na(se_row["b1"])) {
+            se_row["b1"] <- se_row["b"]
+          }
+        }
+        # Select only the columns that exist in par_tab
+        out <- rep(NA_real_, length(keep_cols))
+        names(out) <- keep_cols
+        matched <- intersect(keep_cols, names(se_row))
+        out[matched] <- se_row[matched]
+        out
       }))
+      colnames(se_tab) <- keep_cols
       tab <- cbind(par_tab, se_tab)[, order(c(seq(ncol(par_tab)), seq(ncol(se_tab))))]
       par_names <- colnames(par_tab)
       col_names <- as.vector(rbind(par_names, paste0("SE(", par_names, ")")))
@@ -321,7 +355,8 @@ IRT_poly_summary_coef_reactive <- reactive({
     if (model == "RSM") {
       tab <- data.frame(par_tab, `SE(Location)` = NA, check.names = FALSE)
     } else {
-      se_tab <- matrix(NA, nrow = nrow(par_tab), ncol = ncol(par_tab))
+      se_tab <- matrix(NA_real_, nrow = nrow(par_tab), ncol = ncol(par_tab))
+      colnames(se_tab) <- colnames(par_tab)
       tab <- cbind(par_tab, se_tab)[, order(c(seq(ncol(par_tab)), seq(ncol(se_tab))))]
       par_names <- colnames(par_tab)
       col_names <- as.vector(rbind(par_names, paste0("SE(", par_names, ")")))
@@ -492,8 +527,8 @@ IRT_poly_summary_tic_reactive <- reactive({
     geom_line(aes(y = SE, col = "se")) +
     scale_color_manual("", values = c("blue", "pink"), labels = c("Information", "SE")) +
     scale_y_continuous("Information", sec.axis = sec_axis(~., name = "SE")) +
-    theme(axis.title.y = element_text(color = "pink")) +
-    theme_app()
+    theme_app() +
+    theme(axis.title.y = element_text(color = "pink"))
   g
 })
 
@@ -625,6 +660,13 @@ IRT_poly_wrightmap_args_reactive <- reactive({
   } else {
     # PCM / GPCM: b columns are already item-specific thresholds
     b <- pars[, b_cols, drop = FALSE]
+    # Mixed-category data: binary items have difficulty in 'b', not 'b1'
+    # Copy b -> b1 so binary items appear on the Wright map
+    if ("b" %in% colnames(pars) && "b1" %in% colnames(b)) {
+      b_col <- pars[, "b"]
+      needs_copy <- !is.na(b_col) & is.na(b[, "b1"])
+      b[needs_copy, "b1"] <- b_col[needs_copy]
+    }
   }
 
   item.names <- item_names()
@@ -698,16 +740,7 @@ output$IRT_poly_summary_wrightmap_download <- downloadHandler(
   },
   content = function(file) {
     plts <- IRT_poly_wrightmap_plots()
-    # Use grid to combine plots (same approach as ggWrightMap)
-    grobs <- lapply(plts, ggplot2::ggplotGrob)
-    g_combined <- grid::gTree(
-      grobs = grobs,
-      layout = data.frame(t = c(1, 1), l = c(1, 2), b = c(1, 1), r = c(1, 2),
-                           z = c(1, 2), clip = rep("off", 2), name = rep("arrange", 2)),
-      widths = grid::unit(c(1, 1), "null"),
-      heights = grid::unit(1, "null"),
-      respect = FALSE, name = "arrange", cl = "gtable"
-    )
+    g_combined <- gridExtra::arrangeGrob(plts[[1]], plts[[2]], ncol = 2)
     ggsave(file,
       plot = g_combined,
       device = "png",
