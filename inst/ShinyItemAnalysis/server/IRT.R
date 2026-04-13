@@ -100,7 +100,7 @@ IRT_binary_model_rasch <- reactive({
     data,
     model = 1, itemtype = "Rasch",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -117,7 +117,7 @@ IRT_binary_model_1pl <- reactive({
     data,
     model = model, itemtype = "2PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -129,7 +129,7 @@ IRT_binary_model_2pl <- reactive({
     data,
     model = 1, itemtype = "2PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -141,7 +141,7 @@ IRT_binary_model_3pl <- reactive({
     data,
     model = 1, itemtype = "3PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -153,7 +153,7 @@ IRT_binary_model_4pl <- reactive({
     data,
     model = 1, itemtype = "4PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })

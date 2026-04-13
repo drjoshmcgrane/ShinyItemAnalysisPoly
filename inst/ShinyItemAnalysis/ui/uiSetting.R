@@ -4,14 +4,24 @@ uiSetting <-
     icon = icon("gear"),
     h3("Settings"),
     h4("IRT models setting"),
-    p("Set the number of iterations (EM cycles) for IRT models in the ", strong("IRT models"), "section."),
-    fluidPage(column(2, numericInput(
-      inputId = "ncycles",
-      label = "Number of iterations",
-      value = 500L, # the default for EM estim. in mirt
-      min = 10L,
-      max = 5000L # tried to set a reasonable upper limit for non-local sessions
-    ))),
+    p("Set convergence options for IRT models in the ", strong("IRT models"), "section."),
+    fluidPage(
+      column(2, numericInput(
+        inputId = "ncycles",
+        label = "Max iterations (EM cycles)",
+        value = 500L,
+        min = 10L,
+        max = 5000L
+      )),
+      column(2, numericInput(
+        inputId = "tol",
+        label = "Convergence tolerance",
+        value = 1e-04,
+        min = 1e-07,
+        max = 1e-02,
+        step = 1e-04
+      ))
+    ),
     h4("Figure downloads"),
     p("Here you can change setting for download of figures. "),
     fluidPage(

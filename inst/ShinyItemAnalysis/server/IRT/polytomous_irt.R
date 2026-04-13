@@ -17,7 +17,7 @@ IRT_poly_model_nrm <- reactive({
     data_int,
     model = 1, itemtype = "nominal",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -29,7 +29,7 @@ IRT_poly_model_grm <- reactive({
     data,
     model = 1, itemtype = "graded",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -49,7 +49,7 @@ IRT_poly_model_rsm <- reactive({
     data,
     model = 1, itemtype = "rsm",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -61,7 +61,7 @@ IRT_poly_model_pcm <- reactive({
     data,
     model = 1, itemtype = "Rasch",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -73,7 +73,7 @@ IRT_poly_model_gpcm <- reactive({
     data,
     model = 1, itemtype = "gpcm",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })

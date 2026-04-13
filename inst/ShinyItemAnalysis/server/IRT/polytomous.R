@@ -45,7 +45,7 @@ IRT_bock_fit_and_orig_levels <- reactive({
       fit <- mirt(
         d_int_plus_key[["Data"]], 1,
         itemtype = "nominal", SE = TRUE, pars = pars, verbose = FALSE,
-        technical = list(NCYCLES = input$ncycles)
+        technical = list(NCYCLES = input$ncycles), TOL = input$tol
       )
       orig_levels <- d_int_plus_key[["orig_levels"]]
 
