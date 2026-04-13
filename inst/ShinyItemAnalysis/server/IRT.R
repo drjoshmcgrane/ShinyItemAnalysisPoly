@@ -1,5 +1,6 @@
 # source server logic for polytomous IRT models
 source("server/IRT/polytomous.R", local = T, encoding = "UTF-8")
+source("server/IRT/polytomous_irt.R", local = T, encoding = "UTF-8")
 source("server/IRT/training.R", local = T, encoding = "UTF-8")
 
 
