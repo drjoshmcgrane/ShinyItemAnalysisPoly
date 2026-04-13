@@ -55,9 +55,39 @@ IRT_poly_model_gpcm <- reactive({
   fit
 })
 
-# ** Selected model ####
+# ** NRM model (fitted on ordinal data for comparison) ####
+IRT_poly_model_nrm <- reactive({
+  data <- ordinal()
+  data_nom <- data |> purrr::modify(as.factor)
+  fit <- mirt(
+    data_nom,
+    model = 1, itemtype = "nominal",
+    SE = TRUE, verbose = FALSE,
+    technical = list(NCYCLES = input$ncycles)
+  )
+  fit
+})
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * TAB-BASED MODEL SELECTION ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Determine current model from which tab is active
+IRT_poly_current_model <- reactive({
+  tab <- input[["IRT models"]]
+  switch(tab,
+    "irt_poly_grm" = "GRM",
+    "irt_poly_rsm" = "RSM",
+    "irt_poly_pcm" = "PCM",
+    "irt_poly_gpcm" = "GPCM",
+    "GRM"
+  )
+})
+
+# Selected model fit
 IRT_poly_model <- reactive({
-  fit <- switch(input$IRT_poly_model,
+  fit <- switch(IRT_poly_current_model(),
     "GRM" = IRT_poly_model_grm(),
     "RSM" = IRT_poly_model_rsm(),
     "PCM" = IRT_poly_model_pcm(),
@@ -66,13 +96,25 @@ IRT_poly_model <- reactive({
   fit
 })
 
+# Resolve current item slider
+IRT_poly_current_item <- reactive({
+  model <- IRT_poly_current_model()
+  input[[paste0("IRT_poly_", tolower(model), "_items")]]
+})
+
+# Resolve current show_observed checkbox
+IRT_poly_current_show_observed <- reactive({
+  model <- IRT_poly_current_model()
+  isTRUE(input[[paste0("IRT_poly_", tolower(model), "_show_observed")]])
+})
+
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * MODEL DESCRIPTION ####
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 IRT_poly_model_description <- reactive({
-  txt <- switch(input$IRT_poly_model,
+  txt <- switch(IRT_poly_current_model(),
     "GRM" =
       paste0(
         "The <b>Graded Response Model</b> (GRM; Samejima, 1969) is suitable for items ",
@@ -83,7 +125,7 @@ IRT_poly_model_description <- reactive({
     "RSM" =
       paste0(
         "The <b>Rating Scale Model</b> (RSM; Andrich, 1978) is a Rasch-family model for ",
-        "ordered polytomous items. It assumes equal step structure across all items — the ",
+        "ordered polytomous items. It assumes equal step structure across all items \u2014 the ",
         "threshold distances are the same for every item, with only item location parameters ",
         "varying. This makes it suitable for rating scales where all items share the same ",
         "response format. "
@@ -106,675 +148,624 @@ IRT_poly_model_description <- reactive({
   txt
 })
 
-output$IRT_poly_model_description <- renderText({
-  IRT_poly_model_description()
-})
 
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * UPDATE ITEM SLIDERS ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# ** Equation ####
-IRT_poly_equation <- reactive({
-  txt <- switch(input$IRT_poly_model,
-    "GRM" = withMathJax(
-      p("Cumulative probability: $$P^*(Y_{pi} \\geq k | \\theta_p) = \\frac{e^{a_i(\\theta_p - b_{ik})}}{1 + e^{a_i(\\theta_p - b_{ik})}}$$"),
-      p("Category probability: $$P(Y_{pi} = k | \\theta_p) = P^*(Y_{pi} \\geq k | \\theta_p) - P^*(Y_{pi} \\geq k+1 | \\theta_p)$$")
-    ),
-    "RSM" = withMathJax(
-      p("$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{\\sum_{j=0}^{k}(\\theta_p - b_i - \\tau_j)}}{\\sum_{l=0}^{K} e^{\\sum_{j=0}^{l}(\\theta_p - b_i - \\tau_j)}}$$"),
-      p("where \\(b_i\\) is the item location and \\(\\tau_j\\) are common step parameters.")
-    ),
-    "PCM" = withMathJax(
-      p("$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{\\sum_{j=0}^{k}(\\theta_p - \\delta_{ij})}}{\\sum_{l=0}^{K} e^{\\sum_{j=0}^{l}(\\theta_p - \\delta_{ij})}}$$"),
-      p("where \\(\\delta_{ij}\\) are item-specific step parameters.")
-    ),
-    "GPCM" = withMathJax(
-      p("$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{\\sum_{j=0}^{k} a_i(\\theta_p - \\delta_{ij})}}{\\sum_{l=0}^{K} e^{\\sum_{j=0}^{l} a_i(\\theta_p - \\delta_{ij})}}$$"),
-      p("where \\(a_i\\) is the item discrimination and \\(\\delta_{ij}\\) are item-specific step parameters.")
-    )
-  )
-  txt
-})
-
-output$IRT_poly_equation <- renderUI({
-  IRT_poly_equation()
-})
-
-
-# ** Check whether model converged ####
-output$IRT_poly_model_converged <- renderUI({
-  fit <- IRT_poly_model()
-  txt <- ifelse(extract.mirt(fit, "converged"),
-    "",
-    paste0(
-      "<font color = 'orange'> Estimation process terminated without convergence after ",
-      extract.mirt(fit, "iterations"), " iterations. Estimates are not reliable. ",
-      "Try to increase a number of iterations of the EM algorithm in Settings. </font>"
-    )
-  )
-  HTML(txt)
-})
-
-
-# ** Update item slider ####
 observe({
   item_count <- ncol(ordinal())
-  updateSliderInput(
-    session = session,
-    inputId = "IRT_poly_items",
-    max = item_count
-  )
-})
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# * SUMMARY ####
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-# ** Table of parameters ####
-IRT_poly_summary_coef <- reactive({
-  fit <- IRT_poly_model()
-
-  # GRM and GPCM support IRTpars, PCM and RSM use default parametrization
-  use_irt <- input$IRT_poly_model %in% c("GRM", "GPCM")
-
-  par_tab <- coef(fit, IRTpars = use_irt, simplify = TRUE)$items
-
-  # SEs
-  if (dim(fit@vcov)[1] > 1) {
-    se_list <- coef(fit, IRTpars = use_irt, printSE = TRUE)
-    se_list[["GroupPars"]] <- NULL
-    se_tab <- do.call(rbind, lapply(seq_along(se_list), function(i) {
-      se_row <- se_list[[i]]["SE", ]
-      length(se_row) <- ncol(par_tab)
-      se_row
-    }))
-  } else {
-    se_tab <- matrix(NA, nrow = nrow(par_tab), ncol = ncol(par_tab))
-  }
-
-  # Interleave par and SE columns
-  tab <- cbind(par_tab, se_tab)[, order(c(seq(ncol(par_tab)), seq(ncol(se_tab))))]
-
-  # Rename columns
-  par_names <- colnames(par_tab)
-  col_names <- as.vector(rbind(par_names, paste0("SE(", par_names, ")")))
-  colnames(tab) <- col_names
-
-  # SX2 fit statistics
-  tab_fit <- tryCatch(
-    itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
-    error = function(e) NULL
-  )
-
-  if (!is.null(tab_fit)) {
-    tab <- data.frame(tab, tab_fit)
-    fit_cols <- (ncol(tab) - 2):ncol(tab)
-    colnames(tab)[fit_cols] <- c("SX2-value", "df", "p-value")
-  }
-
-  # Infit/outfit for PCM (Rasch-family)
-  if (input$IRT_poly_model == "PCM") {
-    infit_tab <- tryCatch(
-      itemfit(fit, fit_stats = "infit")[, c("outfit", "infit")],
-      error = function(e) NULL
+  for (m in c("grm", "rsm", "pcm", "gpcm")) {
+    updateSliderInput(
+      session = session,
+      inputId = paste0("IRT_poly_", m, "_items"),
+      max = item_count
     )
-    if (!is.null(infit_tab)) {
-      tab <- data.frame(tab, infit_tab)
-      colnames(tab)[(ncol(tab) - 1):ncol(tab)] <- c("Outfit MNSQ", "Infit MNSQ")
-    }
   }
-
-  rownames(tab) <- item_names()
-  tab
-})
-
-output$IRT_poly_summary_coef <- renderTable(
-  IRT_poly_summary_coef(),
-  rownames = TRUE, striped = TRUE, na = ""
-)
-
-# ** Download table ####
-output$IRT_poly_summary_coef_download <- downloadHandler(
-  filename = function() {
-    paste0("tab_IRT_poly_", input$IRT_poly_model, "_parameters.csv")
-  },
-  content = function(file) {
-    write.csv(IRT_poly_summary_coef(), file)
-  }
-)
-
-# ** Theta grid for plots ####
-IRT_thetas_for_plots <- reactive({
-  seq(-4, 4, length.out = 501)
 })
 
 
-# ** Expected item score curves (Summary) ####
-IRT_poly_summary_expected <- reactive({
-  fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
-  mod_item_names <- fit@Data$data |> colnames()
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * PER-MODEL OUTPUT GENERATION ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  d <- map2_dfr(
-    mod_item_names,
-    item_names(),
-    ~ {
-      probs <- probtrace(extract.item(fit, .x), thetas)
-      n_cats <- ncol(probs)
-      exp_score <- probs %*% (0:(n_cats - 1))
-      tibble(
-        Ability = thetas,
-        Expected = as.numeric(exp_score),
-        Item = .y
-      )
-    }
+# This helper creates all the server outputs for one model, by defining reactives
+# that call the shared computation functions.
+
+local({
+  models <- list(
+    list(id = "GRM", lower = "grm", fit_fn = "IRT_poly_model_grm", show_wright = FALSE),
+    list(id = "RSM", lower = "rsm", fit_fn = "IRT_poly_model_rsm", show_wright = TRUE),
+    list(id = "PCM", lower = "pcm", fit_fn = "IRT_poly_model_pcm", show_wright = TRUE),
+    list(id = "GPCM", lower = "gpcm", fit_fn = "IRT_poly_model_gpcm", show_wright = FALSE)
   )
-  d$Item <- factor(d$Item, levels = item_names())
 
-  g <- d |> ggplot(aes(x = Ability, y = Expected, color = Item)) +
-    geom_line() +
-    ylab("Expected item score") +
-    theme_app()
+  for (m in models) {
+    local({
+      model_id <- m$id
+      model_lower <- m$lower
+      get_fit <- m$fit_fn
+      show_wright <- m$show_wright
 
-  # Overlay observed mean scores if toggled on
-  if (isTRUE(input$IRT_poly_show_observed)) {
-    data <- ordinal()
-    fs <- as.vector(fscores(fit))
-    n_bins <- 10
-    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
-                include.lowest = TRUE)
-    bin_mids <- tapply(fs, bins, mean)
+      # Convergence check
+      output[[paste0("IRT_poly_", model_lower, "_model_converged")]] <- renderUI({
+        fit <- get(get_fit)()
+        txt <- ifelse(extract.mirt(fit, "converged"),
+          "",
+          paste0(
+            "<font color = 'orange'> Estimation process terminated without convergence after ",
+            extract.mirt(fit, "iterations"), " iterations. Estimates are not reliable. ",
+            "Try to increase a number of iterations of the EM algorithm in Settings. </font>"
+          )
+        )
+        HTML(txt)
+      })
 
-    obs_df <- map2_dfr(
-      seq_len(ncol(data)),
-      item_names(),
-      ~ {
-        obs_mean <- tapply(data[[.x]], bins, mean, na.rm = TRUE)
-        tibble(
-          Ability = as.numeric(bin_mids),
-          Expected = as.numeric(obs_mean),
-          Item = .y
+      # ==== SUMMARY ====
+
+      # ** Table of parameters (Summary) ####
+      coef_reactive_name <- paste0("IRT_poly_", model_lower, "_summary_coef_reactive")
+      assign(coef_reactive_name, reactive({
+        fit <- get(get_fit)()
+        use_irt <- model_id %in% c("GRM", "GPCM")
+        par_tab <- coef(fit, IRTpars = use_irt, simplify = TRUE)$items
+
+        if (dim(fit@vcov)[1] > 1) {
+          se_list <- coef(fit, IRTpars = use_irt, printSE = TRUE)
+          se_list[["GroupPars"]] <- NULL
+          se_tab <- do.call(rbind, lapply(seq_along(se_list), function(i) {
+            se_row <- se_list[[i]]["SE", ]
+            length(se_row) <- ncol(par_tab)
+            se_row
+          }))
+        } else {
+          se_tab <- matrix(NA, nrow = nrow(par_tab), ncol = ncol(par_tab))
+        }
+
+        tab <- cbind(par_tab, se_tab)[, order(c(seq(ncol(par_tab)), seq(ncol(se_tab))))]
+        par_names <- colnames(par_tab)
+        col_names <- as.vector(rbind(par_names, paste0("SE(", par_names, ")")))
+        colnames(tab) <- col_names
+
+        tab_fit <- tryCatch(
+          itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
+          error = function(e) NULL
+        )
+        if (!is.null(tab_fit)) {
+          tab <- data.frame(tab, tab_fit)
+          fit_cols <- (ncol(tab) - 2):ncol(tab)
+          colnames(tab)[fit_cols] <- c("SX2-value", "df", "p-value")
+        }
+
+        if (model_id == "PCM") {
+          infit_tab <- tryCatch(
+            itemfit(fit, fit_stats = "infit")[, c("outfit", "infit")],
+            error = function(e) NULL
+          )
+          if (!is.null(infit_tab)) {
+            tab <- data.frame(tab, infit_tab)
+            colnames(tab)[(ncol(tab) - 1):ncol(tab)] <- c("Outfit MNSQ", "Infit MNSQ")
+          }
+        }
+
+        rownames(tab) <- item_names()
+        tab
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_coef")]] <- renderTable(
+        get(coef_reactive_name)(),
+        rownames = TRUE, striped = TRUE, na = ""
+      )
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_coef_download")]] <- downloadHandler(
+        filename = function() {
+          paste0("tab_IRT_poly_", model_id, "_parameters.csv")
+        },
+        content = function(file) {
+          write.csv(get(coef_reactive_name)(), file)
+        }
+      )
+
+      # ** Expected item score curves (Summary) ####
+      expected_summary_name <- paste0("IRT_poly_", model_lower, "_summary_expected_reactive")
+      assign(expected_summary_name, reactive({
+        fit <- get(get_fit)()
+        thetas <- IRT_thetas_for_plots()
+        mod_item_names <- fit@Data$data |> colnames()
+
+        d <- map2_dfr(
+          mod_item_names,
+          item_names(),
+          ~ {
+            probs <- probtrace(extract.item(fit, .x), thetas)
+            n_cats <- ncol(probs)
+            exp_score <- probs %*% (0:(n_cats - 1))
+            tibble(
+              Ability = thetas,
+              Expected = as.numeric(exp_score),
+              Item = .y
+            )
+          }
+        )
+        d$Item <- factor(d$Item, levels = item_names())
+
+        g <- d |> ggplot(aes(x = Ability, y = Expected, color = Item)) +
+          geom_line() +
+          ylab("Expected item score") +
+          theme_app()
+        g
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_expected")]] <- renderPlotly({
+        g <- get(expected_summary_name)()
+        p <- ggplotly(g)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_expected_download")]] <- downloadHandler(
+        filename = function() {
+          paste0("fig_IRT_poly_", model_id, "_expected.png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(expected_summary_name)() +
+              theme(
+                text = element_text(size = setting_figures$text_size),
+                legend.position = "right", legend.key.size = unit(0.8, "lines")
+              ),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
+
+      # ** Item information curves (Summary) ####
+      iic_summary_name <- paste0("IRT_poly_", model_lower, "_summary_iic_reactive")
+      assign(iic_summary_name, reactive({
+        fit <- get(get_fit)()
+        thetas <- IRT_thetas_for_plots()
+        mod_item_names <- fit@Data$data |> colnames()
+
+        d <- map2_dfr(
+          mod_item_names,
+          item_names(),
+          ~ tibble(
+            Ability = thetas,
+            Information = iteminfo(extract.item(fit, .x), thetas),
+            Item = .y
+          )
+        )
+        d$Item <- factor(d$Item, levels = item_names())
+
+        g <- d |> ggplot(aes(x = Ability, y = Information, color = Item)) +
+          geom_line() +
+          theme_app()
+        g
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_iic")]] <- renderPlotly({
+        g <- get(iic_summary_name)()
+        p <- ggplotly(g)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_iic_download")]] <- downloadHandler(
+        filename = function() {
+          paste0("fig_IRT_poly_", model_id, "_IIC.png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(iic_summary_name)() +
+              theme(
+                text = element_text(size = setting_figures$text_size),
+                legend.position = "right", legend.key.size = unit(0.8, "lines")
+              ),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
+
+      # ** Test information curve and SE (Summary) ####
+      tic_summary_name <- paste0("IRT_poly_", model_lower, "_summary_tic_reactive")
+      assign(tic_summary_name, reactive({
+        fit <- get(get_fit)()
+        thetas <- IRT_thetas_for_plots()
+
+        test_info_se <- tibble(
+          Ability = thetas,
+          Information = testinfo(fit, thetas),
+          SE = 1 / sqrt(Information)
+        )
+
+        g <- ggplot(test_info_se, aes(x = Ability)) +
+          geom_line(aes(y = Information, col = "info")) +
+          geom_line(aes(y = SE, col = "se")) +
+          scale_color_manual("", values = c("blue", "pink"), labels = c("Information", "SE")) +
+          scale_y_continuous("Information", sec.axis = sec_axis(~., name = "SE")) +
+          theme(axis.title.y = element_text(color = "pink")) +
+          theme_app()
+        g
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_tic")]] <- renderPlotly({
+        g <- get(tic_summary_name)()
+        p <- ggplotly(g)
+        p$x$data[[1]]$text <- gsub("<br />colour: info", "", p$x$data[[1]]$text)
+        p$x$data[[2]]$text <- gsub("<br />colour: se", "", p$x$data[[2]]$text)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_tic_download")]] <- downloadHandler(
+        filename = function() {
+          paste0("fig_IRT_poly_", model_id, "_TIC.png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(tic_summary_name)() +
+              theme(
+                text = element_text(size = setting_figures$text_size),
+                legend.position = "right", legend.key.size = unit(0.8, "lines")
+              ),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
+
+      # ** Ability estimates ####
+      fscores_name <- paste0("IRT_poly_", model_lower, "_fscores_reactive")
+      assign(fscores_name, reactive({
+        fit <- get(get_fit)()
+        fscore_with_ses <- fscores(fit, full.scores.SE = TRUE)
+        colnames(fscore_with_ses) <- c("F-score", "SE(F-score)")
+
+        tab <- data.frame(
+          `Total score` = total_score(),
+          `Z-score` = z_score(),
+          `T-score` = t_score(),
+          fscore_with_ses,
+          check.names = FALSE
+        )
+        rownames(tab) <- paste("Respondent", 1L:nrow(tab))
+        tab
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_ability")]] <- renderTable(
+        {
+          factors <- get(fscores_name)()
+          head(factors, n = 6)
+        },
+        rownames = TRUE
+      )
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_ability_download")]] <- downloadHandler(
+        filename = function() {
+          paste0("IRT_poly_", model_id, "_abilities.csv")
+        },
+        content = function(file) {
+          write.csv(get(fscores_name)(), file)
+        }
+      )
+
+      # Correlation text
+      corr_name <- paste0("IRT_poly_", model_lower, "_corr_reactive")
+      assign(corr_name, reactive({
+        tab <- get(fscores_name)()
+        cor(tab[["F-score"]], tab[["Z-score"]], use = "pairwise.complete.obs")
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_ability_correlation_text")]] <- renderText({
+        paste0(
+          "This scatterplot shows the relationship between the standardized total ",
+          "score (Z-score) and the factor score estimated by the IRT model. The ",
+          "Pearson correlation coefficient between these two scores is ",
+          sprintf("%.3f", get(corr_name)()), ". "
+        )
+      })
+
+      # Scatterplot
+      ability_plot_name <- paste0("IRT_poly_", model_lower, "_ability_plot_reactive")
+      assign(ability_plot_name, reactive({
+        df <- get(fscores_name)()
+        ggplot(df, aes(`Z-score`, `F-score`)) +
+          geom_point(size = 3) +
+          labs(x = "Standardized total score", y = "Factor score") +
+          theme_app()
+      }), envir = parent.env(environment()))
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_ability_plot")]] <- renderPlotly({
+        g <- get(ability_plot_name)()
+        p <- ggplotly(g)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
+
+      output[[paste0("IRT_poly_", model_lower, "_summary_ability_plot_download")]] <- downloadHandler(
+        filename = function() {
+          paste0("fig_IRT_poly_", model_id, "_abilities.png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(ability_plot_name)() +
+              theme(text = element_text(size = setting_figures$text_size)),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
+
+      # ** Wright map (PCM and RSM only) ####
+      if (show_wright) {
+        wright_args_name <- paste0("IRT_poly_", model_lower, "_wrightmap_args_reactive")
+        assign(wright_args_name, reactive({
+          fit <- get(get_fit)()
+          fscore <- as.vector(fscores(fit))
+          pars <- coef(fit, simplify = TRUE)$items
+          d_cols <- grep("^d", colnames(pars))
+          b <- pars[, d_cols, drop = FALSE]
+          item.names <- item_names()
+          list(theta = fscore, b = b, item.names = item.names)
+        }), envir = parent.env(environment()))
+
+        output[[paste0("IRT_poly_", model_lower, "_summary_wrightmap")]] <- renderPlotly({
+          args <- get(wright_args_name)()
+          b_matrix <- args$b
+          step_labels <- paste0(
+            rep(args$item.names, each = ncol(b_matrix)),
+            " Step ", rep(1:ncol(b_matrix), times = nrow(b_matrix))
+          )
+          b_vec <- as.vector(t(b_matrix))
+          valid <- !is.na(b_vec)
+          b_vec <- b_vec[valid]
+          step_labels <- step_labels[valid]
+
+          plts <- ShinyItemAnalysis:::gg_wright_internal(
+            theta = args$theta,
+            b = b_vec,
+            item.names = step_labels
+          )
+          plt_left <- plts[[1]] |> ggplotly()
+          plt_right <- plts[[2]] |> ggplotly() |>
+            layout(yaxis = list(side = "right"))
+          subplot(plt_left, plt_right, titleY = TRUE, margin = 0) |>
+            plotly::config(displayModeBar = FALSE)
+        })
+
+        output[[paste0("IRT_poly_", model_lower, "_summary_wrightmap_download")]] <- downloadHandler(
+          filename = function() {
+            paste0("fig_IRT_poly_", model_id, "_WrightMap.png")
+          },
+          content = function(file) {
+            args <- get(wright_args_name)()
+            b_matrix <- args$b
+            b_vec <- as.vector(t(b_matrix))
+            step_labels <- paste0(
+              rep(args$item.names, each = ncol(b_matrix)),
+              " Step ", rep(1:ncol(b_matrix), times = nrow(b_matrix))
+            )
+            valid <- !is.na(b_vec)
+            ggsave(file,
+              plot = ggWrightMap(args$theta, b_vec[valid], item.names = step_labels[valid]),
+              device = "png",
+              height = setting_figures$height, width = setting_figures$width,
+              dpi = setting_figures$dpi
+            )
+          }
         )
       }
-    )
-    obs_df$Item <- factor(obs_df$Item, levels = item_names())
-    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Expected, color = Item),
-                        size = 2, alpha = 0.7)
-  }
-
-  g
-})
-
-output$IRT_poly_summary_expected <- renderPlotly({
-  g <- IRT_poly_summary_expected()
-  p <- ggplotly(g)
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
-
-output$IRT_poly_summary_expected_download <- downloadHandler(
-  filename = function() {
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_expected.png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_summary_expected() +
-        theme(
-          text = element_text(size = setting_figures$text_size),
-          legend.position = "right", legend.key.size = unit(0.8, "lines")
-        ),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
 
 
-# ** Item information curves (Summary) ####
-IRT_poly_summary_iic <- reactive({
-  fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
-  mod_item_names <- fit@Data$data |> colnames()
+      # ==== ITEMS ====
 
-  d <- map2_dfr(
-    mod_item_names,
-    item_names(),
-    ~ tibble(
-      Ability = thetas,
-      Information = iteminfo(extract.item(fit, .x), thetas),
-      Item = .y
-    )
-  )
-  d$Item <- factor(d$Item, levels = item_names())
+      # ** Expected item score curve (Items) ####
+      expected_items_name <- paste0("IRT_poly_", model_lower, "_items_expected_reactive")
+      assign(expected_items_name, reactive({
+        item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+        req(item)
+        fit <- get(get_fit)()
+        thetas <- IRT_thetas_for_plots()
 
-  g <- d |> ggplot(aes(x = Ability, y = Information, color = Item)) +
-    geom_line() +
-    theme_app()
-  g
-})
+        probs <- probtrace(extract.item(fit, item), thetas)
+        n_cats <- ncol(probs)
+        exp_score <- probs %*% (0:(n_cats - 1))
 
-output$IRT_poly_summary_iic <- renderPlotly({
-  g <- IRT_poly_summary_iic()
-  p <- ggplotly(g)
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
+        d <- tibble(Ability = thetas, Expected = as.numeric(exp_score))
 
-output$IRT_poly_summary_iic_download <- downloadHandler(
-  filename = function() {
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_IIC.png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_summary_iic() +
-        theme(
-          text = element_text(size = setting_figures$text_size),
-          legend.position = "right", legend.key.size = unit(0.8, "lines")
-        ),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
+        g <- d |> ggplot(aes(x = Ability, y = Expected)) +
+          geom_line() +
+          ylab("Expected item score") +
+          ggtitle(item_names()[item]) +
+          theme_app()
 
+        if (isTRUE(input[[paste0("IRT_poly_", model_lower, "_show_observed")]])) {
+          data <- ordinal()
+          fs <- as.vector(fscores(fit))
+          n_bins <- 10
+          bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
+                      include.lowest = TRUE)
+          bin_mids <- tapply(fs, bins, mean)
+          obs_mean <- tapply(data[[item]], bins, mean, na.rm = TRUE)
 
-# ** Test information curve and SE (Summary) ####
-IRT_poly_summary_tic <- reactive({
-  fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
+          obs_df <- tibble(
+            Ability = as.numeric(bin_mids),
+            Expected = as.numeric(obs_mean)
+          )
+          g <- g + geom_point(data = obs_df, aes(x = Ability, y = Expected),
+                              size = 3, alpha = 0.7)
+        }
+        g
+      }), envir = parent.env(environment()))
 
-  test_info_se <- tibble(
-    Ability = thetas,
-    Information = testinfo(fit, thetas),
-    SE = 1 / sqrt(Information)
-  )
+      output[[paste0("IRT_poly_", model_lower, "_items_expected")]] <- renderPlotly({
+        g <- get(expected_items_name)()
+        p <- ggplotly(g)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
 
-  g <- ggplot(test_info_se, aes(x = Ability)) +
-    geom_line(aes(y = Information, col = "info")) +
-    geom_line(aes(y = SE, col = "se")) +
-    scale_color_manual("", values = c("blue", "pink"), labels = c("Information", "SE")) +
-    scale_y_continuous("Information", sec.axis = sec_axis(~., name = "SE")) +
-    theme(axis.title.y = element_text(color = "pink")) +
-    theme_app()
-  g
-})
+      output[[paste0("IRT_poly_", model_lower, "_items_expected_download")]] <- downloadHandler(
+        filename = function() {
+          item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+          paste0("fig_IRT_poly_", model_id, "_expected_", item_names()[item], ".png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(expected_items_name)() +
+              theme(text = element_text(size = setting_figures$text_size)),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
 
-output$IRT_poly_summary_tic <- renderPlotly({
-  g <- IRT_poly_summary_tic()
-  p <- ggplotly(g)
+      # ** ICC for selected item (Items) ####
+      icc_items_name <- paste0("IRT_poly_", model_lower, "_items_icc_reactive")
+      assign(icc_items_name, reactive({
+        item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+        req(item)
+        fit <- get(get_fit)()
+        thetas <- IRT_thetas_for_plots()
 
-  p$x$data[[1]]$text <- gsub("<br />colour: info", "", p$x$data[[1]]$text)
-  p$x$data[[2]]$text <- gsub("<br />colour: se", "", p$x$data[[2]]$text)
+        probs <- as_tibble(probtrace(extract.item(fit, item), thetas))
+        # Use actual response values from ordinal data for category names
+        data <- ordinal()
+        unique_cats <- sort(unique(data[[item]]))
+        cat_names <- paste0("Cat ", unique_cats)
+        # If mirt returns more/fewer columns, fall back to 0-based
+        if (ncol(probs) != length(cat_names)) {
+          cat_names <- paste0("Cat ", 0:(ncol(probs) - 1))
+          unique_cats <- 0:(ncol(probs) - 1)
+        }
+        names(probs) <- cat_names
 
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
+        probs <- probs |>
+          bind_cols(Ability = thetas) |>
+          pivot_longer(-Ability, names_to = "Category", values_to = "Probability")
+        probs$Category <- factor(probs$Category, levels = cat_names)
 
-output$IRT_poly_summary_tic_download <- downloadHandler(
-  filename = function() {
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_TIC.png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_summary_tic() +
-        theme(
-          text = element_text(size = setting_figures$text_size),
-          legend.position = "right", legend.key.size = unit(0.8, "lines")
-        ),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
+        g <- probs |>
+          ggplot(aes(x = Ability, y = Probability, color = Category)) +
+          geom_line() +
+          ggtitle(item_names()[item]) +
+          coord_cartesian(ylim = c(0, 1)) +
+          theme_app()
 
+        if (isTRUE(input[[paste0("IRT_poly_", model_lower, "_show_observed")]])) {
+          fs <- as.vector(fscores(fit))
+          n_bins <- 10
+          bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
+                      include.lowest = TRUE)
+          bin_mids <- tapply(fs, bins, mean)
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# * ABILITY ESTIMATES ####
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+          item_responses <- data[[item]]
+          n_cats <- length(cat_names)
 
-IRT_poly_summary_fscores_zscores <- reactive({
-  fit <- IRT_poly_model()
-  fscore_with_ses <- fscores(fit, full.scores.SE = TRUE)
-  colnames(fscore_with_ses) <- c("F-score", "SE(F-score)")
+          obs_df <- map_dfr(seq_along(unique_cats), function(idx) {
+            k <- unique_cats[idx]
+            obs_prop <- tapply(as.numeric(item_responses == k), bins, mean, na.rm = TRUE)
+            tibble(
+              Ability = as.numeric(bin_mids),
+              Probability = as.numeric(obs_prop),
+              Category = cat_names[idx]
+            )
+          })
+          obs_df$Category <- factor(obs_df$Category, levels = cat_names)
+          g <- g + geom_point(data = obs_df, aes(x = Ability, y = Probability, color = Category),
+                              size = 2, alpha = 0.7)
+        }
+        g
+      }), envir = parent.env(environment()))
 
-  tab <- data.frame(
-    `Total score` = total_score(),
-    `Z-score` = z_score(),
-    `T-score` = t_score(),
-    fscore_with_ses,
-    check.names = FALSE
-  )
+      output[[paste0("IRT_poly_", model_lower, "_items_icc")]] <- renderPlotly({
+        g <- get(icc_items_name)()
+        p <- ggplotly(g)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
 
-  rownames(tab) <- paste("Respondent", 1L:nrow(tab))
-  tab
-})
+      output[[paste0("IRT_poly_", model_lower, "_items_icc_download")]] <- downloadHandler(
+        filename = function() {
+          item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+          paste0("fig_IRT_poly_", model_id, "_ICC_", item_names()[item], ".png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(icc_items_name)() +
+              theme(
+                text = element_text(size = setting_figures$text_size),
+                legend.position = "right", legend.key.size = unit(0.8, "lines")
+              ),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
 
-output$IRT_poly_summary_ability <- renderTable(
-  {
-    factors <- IRT_poly_summary_fscores_zscores()
-    head(factors, n = 6)
-  },
-  rownames = TRUE
-)
+      # ** IIC for selected item (Items) ####
+      iic_items_name <- paste0("IRT_poly_", model_lower, "_items_iic_reactive")
+      assign(iic_items_name, reactive({
+        item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+        req(item)
+        fit <- get(get_fit)()
+        thetas <- IRT_thetas_for_plots()
 
-output$IRT_poly_summary_ability_download <- downloadHandler(
-  filename = function() {
-    paste0("IRT_poly_", input$IRT_poly_model, "_abilities.csv")
-  },
-  content = function(file) {
-    write.csv(IRT_poly_summary_fscores_zscores(), file)
-  }
-)
+        d <- tibble(
+          Ability = thetas,
+          Information = iteminfo(extract.item(fit, item), thetas)
+        )
 
-# ** Correlation text ####
-IRT_poly_summary_ability_correlation <- reactive({
-  tab <- IRT_poly_summary_fscores_zscores()
-  cor(tab[["F-score"]], tab[["Z-score"]], use = "pairwise.complete.obs")
-})
+        g <- d |> ggplot(aes(x = Ability, y = Information)) +
+          geom_line() +
+          ggtitle(item_names()[item]) +
+          theme_app()
+        g
+      }), envir = parent.env(environment()))
 
-output$IRT_poly_summary_ability_correlation_text <- renderText({
-  paste0(
-    "This scatterplot shows the relationship between the standardized total ",
-    "score (Z-score) and the factor score estimated by the IRT model. The ",
-    "Pearson correlation coefficient between these two scores is ",
-    sprintf("%.3f", IRT_poly_summary_ability_correlation()), ". "
-  )
-})
+      output[[paste0("IRT_poly_", model_lower, "_items_iic")]] <- renderPlotly({
+        g <- get(iic_items_name)()
+        p <- ggplotly(g)
+        p$elementId <- NULL
+        p |> plotly::config(displayModeBar = FALSE)
+      })
 
-# ** Scatterplot ####
-IRT_poly_summary_ability_plot <- reactive({
-  df <- IRT_poly_summary_fscores_zscores()
+      output[[paste0("IRT_poly_", model_lower, "_items_iic_download")]] <- downloadHandler(
+        filename = function() {
+          item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+          paste0("fig_IRT_poly_", model_id, "_IIC_", item_names()[item], ".png")
+        },
+        content = function(file) {
+          ggsave(file,
+            plot = get(iic_items_name)() +
+              theme(text = element_text(size = setting_figures$text_size)),
+            device = "png",
+            height = setting_figures$height, width = setting_figures$width,
+            dpi = setting_figures$dpi
+          )
+        }
+      )
 
-  ggplot(df, aes(`Z-score`, `F-score`)) +
-    geom_point(size = 3) +
-    labs(x = "Standardized total score", y = "Factor score") +
-    theme_app()
-})
-
-output$IRT_poly_summary_ability_plot <- renderPlotly({
-  g <- IRT_poly_summary_ability_plot()
-  p <- ggplotly(g)
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
-
-output$IRT_poly_summary_ability_plot_download <- downloadHandler(
-  filename = function() {
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_abilities.png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_summary_ability_plot() +
-        theme(text = element_text(size = setting_figures$text_size)),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
-
-
-# ** Wright map (PCM and RSM only) ####
-IRT_poly_summary_wrightmap_args <- reactive({
-  fit <- IRT_poly_model()
-  fscore <- as.vector(fscores(fit))
-
-  pars <- coef(fit, simplify = TRUE)$items
-  d_cols <- grep("^d", colnames(pars))
-  b <- pars[, d_cols, drop = FALSE]
-
-  item.names <- item_names()
-
-  list(theta = fscore, b = b, item.names = item.names)
-})
-
-output$IRT_poly_summary_wrightmap <- renderPlotly({
-  args <- IRT_poly_summary_wrightmap_args()
-
-  b_matrix <- args$b
-  step_labels <- paste0(
-    rep(args$item.names, each = ncol(b_matrix)),
-    " Step ", rep(1:ncol(b_matrix), times = nrow(b_matrix))
-  )
-  b_vec <- as.vector(t(b_matrix))
-
-  valid <- !is.na(b_vec)
-  b_vec <- b_vec[valid]
-  step_labels <- step_labels[valid]
-
-  plts <- ShinyItemAnalysis:::gg_wright_internal(
-    theta = args$theta,
-    b = b_vec,
-    item.names = step_labels
-  )
-
-  plt_left <- plts[[1]] |> ggplotly()
-  plt_right <- plts[[2]] |> ggplotly() |>
-    layout(yaxis = list(side = "right"))
-
-  subplot(plt_left, plt_right, titleY = TRUE, margin = 0) |>
-    plotly::config(displayModeBar = FALSE)
-})
-
-output$IRT_poly_summary_wrightmap_download <- downloadHandler(
-  filename = function() {
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_WrightMap.png")
-  },
-  content = function(file) {
-    args <- IRT_poly_summary_wrightmap_args()
-    b_matrix <- args$b
-    b_vec <- as.vector(t(b_matrix))
-    step_labels <- paste0(
-      rep(args$item.names, each = ncol(b_matrix)),
-      " Step ", rep(1:ncol(b_matrix), times = nrow(b_matrix))
-    )
-    valid <- !is.na(b_vec)
-    ggsave(file,
-      plot = ggWrightMap(args$theta, b_vec[valid], item.names = step_labels[valid]),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# * ITEMS ####
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-# ** Expected item score curve (Items) ####
-IRT_poly_items_expected <- reactive({
-  item <- input$IRT_poly_items
-  fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
-
-  probs <- probtrace(extract.item(fit, item), thetas)
-  n_cats <- ncol(probs)
-  exp_score <- probs %*% (0:(n_cats - 1))
-
-  d <- tibble(Ability = thetas, Expected = as.numeric(exp_score))
-
-  g <- d |> ggplot(aes(x = Ability, y = Expected)) +
-    geom_line() +
-    ylab("Expected item score") +
-    ggtitle(item_names()[item]) +
-    theme_app()
-
-  if (isTRUE(input$IRT_poly_show_observed)) {
-    data <- ordinal()
-    fs <- as.vector(fscores(fit))
-    n_bins <- 10
-    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
-                include.lowest = TRUE)
-    bin_mids <- tapply(fs, bins, mean)
-    obs_mean <- tapply(data[[item]], bins, mean, na.rm = TRUE)
-
-    obs_df <- tibble(
-      Ability = as.numeric(bin_mids),
-      Expected = as.numeric(obs_mean)
-    )
-    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Expected),
-                        size = 3, alpha = 0.7)
-  }
-
-  g
-})
-
-output$IRT_poly_items_expected <- renderPlotly({
-  g <- IRT_poly_items_expected()
-  p <- ggplotly(g)
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
-
-output$IRT_poly_items_expected_download <- downloadHandler(
-  filename = function() {
-    item <- input$IRT_poly_items
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_expected_", item_names()[item], ".png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_items_expected() +
-        theme(text = element_text(size = setting_figures$text_size)),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
-
-
-# ** ICC for selected item (Items) ####
-IRT_poly_items_icc <- reactive({
-  item <- input$IRT_poly_items
-  fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
-
-  probs <- as_tibble(probtrace(extract.item(fit, item), thetas))
-  cat_names <- paste0("Cat ", 0:(ncol(probs) - 1))
-  names(probs) <- cat_names
-
-  probs <- probs |>
-    bind_cols(Ability = thetas) |>
-    pivot_longer(-Ability, names_to = "Category", values_to = "Probability")
-  probs$Category <- factor(probs$Category, levels = cat_names)
-
-  g <- probs |>
-    ggplot(aes(x = Ability, y = Probability, color = Category)) +
-    geom_line() +
-    ggtitle(item_names()[item]) +
-    coord_cartesian(ylim = c(0, 1)) +
-    theme_app()
-
-  if (isTRUE(input$IRT_poly_show_observed)) {
-    data <- ordinal()
-    fs <- as.vector(fscores(fit))
-    n_bins <- 10
-    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
-                include.lowest = TRUE)
-    bin_mids <- tapply(fs, bins, mean)
-
-    item_responses <- data[[item]]
-    n_cats <- length(cat_names)
-
-    obs_df <- map_dfr(0:(n_cats - 1), function(k) {
-      obs_prop <- tapply(as.numeric(item_responses == k), bins, mean, na.rm = TRUE)
-      tibble(
-        Ability = as.numeric(bin_mids),
-        Probability = as.numeric(obs_prop),
-        Category = cat_names[k + 1]
+      # ** Parameter table for selected item ####
+      output[[paste0("IRT_poly_", model_lower, "_items_coef")]] <- renderTable(
+        {
+          item <- input[[paste0("IRT_poly_", model_lower, "_items")]]
+          req(item)
+          get(coef_reactive_name)()[item, , drop = FALSE]
+        },
+        rownames = TRUE, striped = TRUE, na = ""
       )
     })
-    obs_df$Category <- factor(obs_df$Category, levels = cat_names)
-    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Probability, color = Category),
-                        size = 2, alpha = 0.7)
   }
-
-  g
 })
-
-output$IRT_poly_items_icc <- renderPlotly({
-  g <- IRT_poly_items_icc()
-  p <- ggplotly(g)
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
-
-output$IRT_poly_items_icc_download <- downloadHandler(
-  filename = function() {
-    item <- input$IRT_poly_items
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_ICC_", item_names()[item], ".png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_items_icc() +
-        theme(
-          text = element_text(size = setting_figures$text_size),
-          legend.position = "right", legend.key.size = unit(0.8, "lines")
-        ),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
-
-
-# ** IIC for selected item (Items) ####
-IRT_poly_items_iic <- reactive({
-  item <- input$IRT_poly_items
-  fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
-
-  d <- tibble(
-    Ability = thetas,
-    Information = iteminfo(extract.item(fit, item), thetas)
-  )
-
-  g <- d |> ggplot(aes(x = Ability, y = Information)) +
-    geom_line() +
-    ggtitle(item_names()[item]) +
-    theme_app()
-  g
-})
-
-output$IRT_poly_items_iic <- renderPlotly({
-  g <- IRT_poly_items_iic()
-  p <- ggplotly(g)
-  p$elementId <- NULL
-  p |> plotly::config(displayModeBar = FALSE)
-})
-
-output$IRT_poly_items_iic_download <- downloadHandler(
-  filename = function() {
-    item <- input$IRT_poly_items
-    paste0("fig_IRT_poly_", input$IRT_poly_model, "_IIC_", item_names()[item], ".png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = IRT_poly_items_iic() +
-        theme(text = element_text(size = setting_figures$text_size)),
-      device = "png",
-      height = setting_figures$height, width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
-
-
-# ** Parameter table for selected item ####
-IRT_poly_items_coef <- reactive({
-  item <- input$IRT_poly_items
-  IRT_poly_summary_coef()[item, , drop = FALSE]
-})
-
-output$IRT_poly_items_coef <- renderTable(
-  IRT_poly_items_coef(),
-  rownames = TRUE, striped = TRUE, na = ""
-)
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -787,6 +778,7 @@ output$IRT_poly_comparison_model_converged <- renderUI({
   fitRSM <- IRT_poly_model_rsm()
   fitPCM <- IRT_poly_model_pcm()
   fitGPCM <- IRT_poly_model_gpcm()
+  fitNRM <- IRT_poly_model_nrm()
 
   txt_grm <- ifelse(extract.mirt(fitGRM, "converged"), "",
     "Estimation process in the <b>GRM</b> terminated without convergence. <br>")
@@ -796,8 +788,10 @@ output$IRT_poly_comparison_model_converged <- renderUI({
     "Estimation process in the <b>PCM</b> terminated without convergence. <br>")
   txt_gpcm <- ifelse(extract.mirt(fitGPCM, "converged"), "",
     "Estimation process in the <b>GPCM</b> terminated without convergence. <br>")
+  txt_nrm <- ifelse(extract.mirt(fitNRM, "converged"), "",
+    "Estimation process in the <b>NRM</b> terminated without convergence. <br>")
 
-  txt <- paste0(txt_grm, txt_rsm, txt_pcm, txt_gpcm)
+  txt <- paste0(txt_grm, txt_rsm, txt_pcm, txt_gpcm, txt_nrm)
   if (txt != "") {
     txt <- paste0(
       "<font color = 'orange'>", txt,
@@ -814,12 +808,26 @@ IRT_poly_comparison <- reactive({
   fitPCM <- IRT_poly_model_pcm()
   fitGPCM <- IRT_poly_model_gpcm()
   fitGRM <- IRT_poly_model_grm()
+  fitNRM <- IRT_poly_model_nrm()
 
-  df <- anova(fitRSM, fitPCM, fitGPCM, fitGRM)
-  df <- round(df, 3)
-  df <- df[, c("AIC", "BIC", "logLik")]
+  # Get AIC/BIC/logLik for each model individually
+  get_ic <- function(fit) {
+    data.frame(
+      AIC = round(fit@Fit$AIC, 3),
+      BIC = round(fit@Fit$BIC, 3),
+      logLik = round(fit@Fit$logLik, 3)
+    )
+  }
 
-  nam <- c("RSM", "PCM", "GPCM", "GRM")
+  df <- rbind(
+    get_ic(fitNRM),
+    get_ic(fitRSM),
+    get_ic(fitPCM),
+    get_ic(fitGPCM),
+    get_ic(fitGRM)
+  )
+
+  nam <- c("NRM", "RSM", "PCM", "GPCM", "GRM")
   rownames(df) <- nam
 
   best_row <- c(

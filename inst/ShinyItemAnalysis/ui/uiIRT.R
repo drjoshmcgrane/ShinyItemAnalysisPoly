@@ -329,9 +329,12 @@ uiIRT <- navbarMenu(
   ),
   "----",
   "Polytomous models",
-  uiPolyIRT, # UI sourced in the beginning of this .R file
-  uiPolyIRTModels,
-  uiPolyIRTComparison,
+  uiPolyIRT,           # NRM
+  uiPolyIRTGRM,        # GRM as separate tab
+  uiPolyIRTRSM,        # RSM as separate tab
+  uiPolyIRTPCM,        # PCM as separate tab
+  uiPolyIRTGPCM,       # GPCM as separate tab
+  uiPolyIRTComparison, # comparison tab
   "----",
   "Training",
   # * TRAINING  ####
