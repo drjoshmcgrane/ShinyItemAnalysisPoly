@@ -66,6 +66,16 @@ uiIRT <- navbarMenu(
             )
           )
         ),
+        fluidRow(
+          column(
+            3,
+            checkboxInput(
+              inputId = "IRT_binary_summary_show_observed",
+              label = "Show observed proportions",
+              value = FALSE
+            )
+          )
+        ),
         uiOutput("IRT_binary_summary_model_description"),
         uiOutput("IRT_binary_summary_icc_equation", inline = TRUE),
         uiOutput("IRT_binary_summary_iic_equation", inline = TRUE),
@@ -219,6 +229,14 @@ uiIRT <- navbarMenu(
               inputId = "IRT_binary_items", label = "Item",
               min = 1, value = 1, max = 20,
               step = 1, animate = TRUE
+            )
+          ),
+          column(
+            3,
+            checkboxInput(
+              inputId = "IRT_binary_items_show_observed",
+              label = "Show observed proportions",
+              value = FALSE
             )
           )
         ),
