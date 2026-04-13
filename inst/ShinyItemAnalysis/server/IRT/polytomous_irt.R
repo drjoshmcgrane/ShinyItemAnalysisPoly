@@ -405,8 +405,11 @@ IRT_poly_summary_coef_reactive <- reactive({
 })
 
 output$IRT_poly_summary_coef <- renderTable(
-  IRT_poly_summary_coef_reactive(),
-  rownames = TRUE, striped = TRUE, na = ""
+  {
+    IRT_poly_summary_coef_reactive()
+  },
+  include.rownames = TRUE,
+  include.colnames = TRUE
 )
 
 output$IRT_poly_summary_coef_download <- downloadHandler(
