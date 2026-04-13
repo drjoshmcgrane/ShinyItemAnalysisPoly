@@ -895,7 +895,7 @@ IRT_binary_items_icc <- reactive({
   if (isTRUE(input$IRT_binary_items_show_observed)) {
     data <- binary()
     fs <- as.vector(fscores(fit))
-    n_bins <- 10
+    n_bins <- input$IRT_binary_observed_groups %||% 3
     bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
                 include.lowest = TRUE)
     bin_mids <- tapply(fs, bins, mean)

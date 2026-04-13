@@ -782,7 +782,7 @@ IRT_poly_items_expected_reactive <- reactive({
 
   if (isTRUE(input$IRT_poly_show_observed)) {
     fs <- as.vector(fscores(fit))
-    n_bins <- 10
+    n_bins <- input$IRT_poly_observed_groups %||% 3
     bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
                 include.lowest = TRUE)
     bin_mids <- tapply(fs, bins, mean)
@@ -854,7 +854,7 @@ IRT_poly_items_icc_reactive <- reactive({
 
   if (isTRUE(input$IRT_poly_show_observed)) {
     fs <- as.vector(fscores(fit))
-    n_bins <- 10
+    n_bins <- input$IRT_poly_observed_groups %||% 3
     bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
                 include.lowest = TRUE)
     bin_mids <- tapply(fs, bins, mean)

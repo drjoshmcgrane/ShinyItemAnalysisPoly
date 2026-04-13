@@ -150,16 +150,35 @@ uiPolyIRTModels <- tabPanel(
       fluidRow(
         column(
           12,
-          sliderInput(
-            inputId = "IRT_poly_items",
-            label = "Item",
-            min = 1, value = 1, max = 20,
-            step = 1, animate = TRUE
-          ),
-          checkboxInput(
-            inputId = "IRT_poly_show_observed",
-            label = "Show observed proportions",
-            value = FALSE
+          fluidRow(
+            column(
+              2,
+              sliderInput(
+                inputId = "IRT_poly_items",
+                label = "Item",
+                min = 1, value = 1, max = 20,
+                step = 1, animate = TRUE
+              )
+            ),
+            column(
+              3,
+              checkboxInput(
+                inputId = "IRT_poly_show_observed",
+                label = "Show observed proportions",
+                value = FALSE
+              )
+            ),
+            column(
+              2,
+              conditionalPanel(
+                condition = "input.IRT_poly_show_observed == true",
+                numericInput(
+                  inputId = "IRT_poly_observed_groups",
+                  label = "Number of groups",
+                  value = 3, min = 2, max = 20, step = 1
+                )
+              )
+            )
           ),
           div(
             style = "margin-bottom: 25px;",

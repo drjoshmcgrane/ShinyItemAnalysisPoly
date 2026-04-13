@@ -231,6 +231,17 @@ uiIRT <- navbarMenu(
               label = "Show observed proportions",
               value = FALSE
             )
+          ),
+          column(
+            2,
+            conditionalPanel(
+              condition = "input.IRT_binary_items_show_observed == true",
+              numericInput(
+                inputId = "IRT_binary_observed_groups",
+                label = "Number of groups",
+                value = 3, min = 2, max = 20, step = 1
+              )
+            )
           )
         ),
         uiOutput("IRT_binary_items_model_description"),
