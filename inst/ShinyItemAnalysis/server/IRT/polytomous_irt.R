@@ -385,34 +385,13 @@ IRT_poly_summary_coef_reactive <- reactive({
     }
   }
 
-  # Italicise parameter names to match dichotomous table style
-  # Must be done AFTER all data.frame() calls to avoid make.names() mangling
-  nms <- colnames(tab)
-  skip <- c("SX2-value", "df", "p-value", "Outfit MNSQ", "Infit MNSQ",
-            "Location", "SE(Location)")
-  for (i in seq_along(nms)) {
-    if (nms[i] %in% skip) next
-    if (grepl("^SE\\(", nms[i])) {
-      inner <- sub("^SE\\((.+)\\)$", "\\1", nms[i])
-      nms[i] <- paste0("SE(\\(\\mathit{", inner, "}\\))")
-    } else {
-      nms[i] <- paste0("\\(\\mathit{", nms[i], "}\\)")
-    }
-  }
-  colnames(tab) <- nms
-
   rownames(tab) <- item_names()
   tab
 })
 
 output$IRT_poly_summary_coef <- renderTable(
-  {
-    IRT_poly_summary_coef_reactive()
-  },
-  include.rownames = TRUE,
-  include.colnames = TRUE,
-  striped = TRUE,
-  na = ""
+  IRT_poly_summary_coef_reactive(),
+  rownames = TRUE, striped = TRUE, na = ""
 )
 
 output$IRT_poly_summary_coef_download <- downloadHandler(
