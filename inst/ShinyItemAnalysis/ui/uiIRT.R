@@ -6,6 +6,9 @@ source("ui/uiIRT/uiDIRT.R", local = T, encoding = "UTF-8")
 # source polytomous IRT UI (only NRM for the moment)
 source("ui/uiIRT/uiPolyIRT.R", local = T, encoding = "UTF-8")
 
+# source polytomous IRT models UI (GRM, RSM, PCM, GPCM)
+source("ui/uiIRT/uiPolyIRTModels.R", local = T, encoding = "UTF-8")
+
 # polytomous methods training
 source("ui/uiIRT/uiPolyTraining.R", local = T, encoding = "UTF-8")
 
@@ -327,6 +330,8 @@ uiIRT <- navbarMenu(
   "----",
   "Polytomous models",
   uiPolyIRT, # UI sourced in the beginning of this .R file
+  uiPolyIRTModels,
+  uiPolyIRTComparison,
   "----",
   "Training",
   # * TRAINING  ####
