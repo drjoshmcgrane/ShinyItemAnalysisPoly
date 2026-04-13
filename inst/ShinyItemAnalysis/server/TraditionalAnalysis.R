@@ -258,7 +258,7 @@ itemanalysis_table <- reactive({
     )
 
   tab <- tab |>
-    select(
+    dplyr::select(
       "Diff." = Difficulty,
       "Avg. score" = Mean,
       SD,
