@@ -740,7 +740,12 @@ output$IRT_poly_summary_wrightmap_download <- downloadHandler(
   },
   content = function(file) {
     plts <- IRT_poly_wrightmap_plots()
-    g_combined <- gridExtra::arrangeGrob(plts[[1]], plts[[2]], ncol = 2)
+    grobs <- lapply(plts, ggplot2::ggplotGrob)
+    # Align panel heights so y-axes match between histogram and item plot
+    max_heights <- grid::unit.pmax(grobs[[1]]$heights, grobs[[2]]$heights)
+    grobs[[1]]$heights <- max_heights
+    grobs[[2]]$heights <- max_heights
+    g_combined <- gridExtra::arrangeGrob(grobs = grobs, ncol = 2)
     ggsave(file,
       plot = g_combined,
       device = "png",
