@@ -579,3 +579,199 @@ output$IRT_poly_summary_wrightmap_download <- downloadHandler(
     )
   }
 )
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * ITEMS ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# ** Expected item score curve (Items) ####
+IRT_poly_items_expected <- reactive({
+  item <- input$IRT_poly_items
+  fit <- IRT_poly_model()
+  thetas <- IRT_thetas_for_plots()
+
+  probs <- probtrace(extract.item(fit, item), thetas)
+  n_cats <- ncol(probs)
+  exp_score <- probs %*% (0:(n_cats - 1))
+
+  d <- tibble(Ability = thetas, Expected = as.numeric(exp_score))
+
+  g <- d |> ggplot(aes(x = Ability, y = Expected)) +
+    geom_line() +
+    ylab("Expected item score") +
+    ggtitle(item_names()[item]) +
+    theme_app()
+
+  if (isTRUE(input$IRT_poly_show_observed)) {
+    data <- ordinal()
+    fs <- as.vector(fscores(fit))
+    n_bins <- 10
+    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
+                include.lowest = TRUE)
+    bin_mids <- tapply(fs, bins, mean)
+    obs_mean <- tapply(data[[item]], bins, mean, na.rm = TRUE)
+
+    obs_df <- tibble(
+      Ability = as.numeric(bin_mids),
+      Expected = as.numeric(obs_mean)
+    )
+    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Expected),
+                        size = 3, alpha = 0.7)
+  }
+
+  g
+})
+
+output$IRT_poly_items_expected <- renderPlotly({
+  g <- IRT_poly_items_expected()
+  p <- ggplotly(g)
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_items_expected_download <- downloadHandler(
+  filename = function() {
+    item <- input$IRT_poly_items
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_expected_", item_names()[item], ".png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_items_expected() +
+        theme(text = element_text(size = setting_figures$text_size)),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
+
+
+# ** ICC for selected item (Items) ####
+IRT_poly_items_icc <- reactive({
+  item <- input$IRT_poly_items
+  fit <- IRT_poly_model()
+  thetas <- IRT_thetas_for_plots()
+
+  probs <- as_tibble(probtrace(extract.item(fit, item), thetas))
+  cat_names <- paste0("Cat ", 0:(ncol(probs) - 1))
+  names(probs) <- cat_names
+
+  probs <- probs |>
+    bind_cols(Ability = thetas) |>
+    pivot_longer(-Ability, names_to = "Category", values_to = "Probability")
+  probs$Category <- factor(probs$Category, levels = cat_names)
+
+  g <- probs |>
+    ggplot(aes(x = Ability, y = Probability, color = Category)) +
+    geom_line() +
+    ggtitle(item_names()[item]) +
+    coord_cartesian(ylim = c(0, 1)) +
+    theme_app()
+
+  if (isTRUE(input$IRT_poly_show_observed)) {
+    data <- ordinal()
+    fs <- as.vector(fscores(fit))
+    n_bins <- 10
+    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
+                include.lowest = TRUE)
+    bin_mids <- tapply(fs, bins, mean)
+
+    item_responses <- data[[item]]
+    n_cats <- length(cat_names)
+
+    obs_df <- map_dfr(0:(n_cats - 1), function(k) {
+      obs_prop <- tapply(as.numeric(item_responses == k), bins, mean, na.rm = TRUE)
+      tibble(
+        Ability = as.numeric(bin_mids),
+        Probability = as.numeric(obs_prop),
+        Category = cat_names[k + 1]
+      )
+    })
+    obs_df$Category <- factor(obs_df$Category, levels = cat_names)
+    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Probability, color = Category),
+                        size = 2, alpha = 0.7)
+  }
+
+  g
+})
+
+output$IRT_poly_items_icc <- renderPlotly({
+  g <- IRT_poly_items_icc()
+  p <- ggplotly(g)
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_items_icc_download <- downloadHandler(
+  filename = function() {
+    item <- input$IRT_poly_items
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_ICC_", item_names()[item], ".png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_items_icc() +
+        theme(
+          text = element_text(size = setting_figures$text_size),
+          legend.position = "right", legend.key.size = unit(0.8, "lines")
+        ),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
+
+
+# ** IIC for selected item (Items) ####
+IRT_poly_items_iic <- reactive({
+  item <- input$IRT_poly_items
+  fit <- IRT_poly_model()
+  thetas <- IRT_thetas_for_plots()
+
+  d <- tibble(
+    Ability = thetas,
+    Information = iteminfo(extract.item(fit, item), thetas)
+  )
+
+  g <- d |> ggplot(aes(x = Ability, y = Information)) +
+    geom_line() +
+    ggtitle(item_names()[item]) +
+    theme_app()
+  g
+})
+
+output$IRT_poly_items_iic <- renderPlotly({
+  g <- IRT_poly_items_iic()
+  p <- ggplotly(g)
+  p$elementId <- NULL
+  p |> plotly::config(displayModeBar = FALSE)
+})
+
+output$IRT_poly_items_iic_download <- downloadHandler(
+  filename = function() {
+    item <- input$IRT_poly_items
+    paste0("fig_IRT_poly_", input$IRT_poly_model, "_IIC_", item_names()[item], ".png")
+  },
+  content = function(file) {
+    ggsave(file,
+      plot = IRT_poly_items_iic() +
+        theme(text = element_text(size = setting_figures$text_size)),
+      device = "png",
+      height = setting_figures$height, width = setting_figures$width,
+      dpi = setting_figures$dpi
+    )
+  }
+)
+
+
+# ** Parameter table for selected item ####
+IRT_poly_items_coef <- reactive({
+  item <- input$IRT_poly_items
+  IRT_poly_summary_coef()[item, , drop = FALSE]
+})
+
+output$IRT_poly_items_coef <- renderTable(
+  IRT_poly_items_coef(),
+  rownames = TRUE, striped = TRUE, na = ""
+)
