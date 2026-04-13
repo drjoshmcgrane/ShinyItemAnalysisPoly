@@ -33,7 +33,7 @@ remotes::install_github("drjoshmcgrane/ShinyItemAnalysisPoly", dependencies = TR
 ShinyItemAnalysisPoly::run_app()
 ```
 
-Or in RStudio, click `Run ShinyItemAnalysis` in the Addins menu.
+Or in RStudio, use the `Run ShinyItemAnalysis` entry in the [Addins](https://docs.posit.co/ide/user/ide/guide/productivity/add-ins.html) menu.
 
 ## Upstream
 
