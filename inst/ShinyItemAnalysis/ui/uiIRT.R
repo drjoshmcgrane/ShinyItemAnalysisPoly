@@ -103,7 +103,8 @@ uiIRT <- navbarMenu(
           "Estimates of item parameters can be displayed using the IRT or intercept/slope ",
           strong("parametrization,"), "which can be selected at the top of this tab. Parameter estimates
                  are completed by SX2 item fit statistics (Orlando & Thissen, 2000). SX2 statistics are computed
-                 only when no missing data are present."
+                 only when no missing data are present.",
+          "For Rasch and 1PL models, infit and outfit mean-square statistics (Wright & Masters, 1982) are also provided."
         ),
         tableOutput("IRT_binary_summary_coef"),
         downloadButton(
@@ -249,7 +250,8 @@ uiIRT <- navbarMenu(
           "Estimates of item parameters can be displayed using the IRT or intercept/slope ",
           strong("parametrization,"), "which can be selected at the top of this tab. Parameter estimates
                  are completed by SX2 item fit statistics (Orlando & Thissen, 2000). SX2 statistics are computed
-                 only when no missing data are present."
+                 only when no missing data are present.",
+          "For Rasch and 1PL models, infit and outfit mean-square statistics (Wright & Masters, 1982) are also provided."
         ),
         fluidRow(column(12, align = "center", tableOutput("IRT_binary_items_coef"))),
 

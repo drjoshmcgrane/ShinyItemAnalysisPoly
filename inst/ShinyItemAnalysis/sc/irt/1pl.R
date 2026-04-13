@@ -56,6 +56,8 @@ deltamethod(
 
 # item fit statistics
 itemfit(fit)
+# infit and outfit statistics
+itemfit(fit, fit_stats = "infit")
 
 # factor scores vs standardized total scores
 fs <- as.vector(fscores(fit))

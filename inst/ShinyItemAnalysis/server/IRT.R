@@ -611,6 +611,18 @@ IRT_binary_summary_coef <- reactive({
     colnames(tab)[9:11] <- c("SX2-value", "df", "p-value")
   }
 
+  # Add infit/outfit for Rasch and 1PL models
+  if (input$IRT_binary_summary_model %in% c("Rasch", "1PL")) {
+    infit_tab <- tryCatch(
+      itemfit(fit, fit_stats = "infit")[, c("outfit", "infit")],
+      error = function(e) NULL
+    )
+    if (!is.null(infit_tab)) {
+      tab <- data.frame(tab, infit_tab)
+      colnames(tab)[(ncol(tab) - 1):ncol(tab)] <- c("Outfit MNSQ", "Infit MNSQ")
+    }
+  }
+
   if (IRTpars) {
     colnames(tab)[1:8] <- paste0(
       c("", "SE("),
@@ -623,7 +635,7 @@ IRT_binary_summary_coef <- reactive({
       paste0("\\(\\mathit{", rep(c("\\beta_{1}", "\\beta_{0}", "c", "d"), each = 2), "}\\)"),
       c("", ")")
     )
-    tab <- tab[, c(3:4, 1:2, 5:8, 9:11)]
+    tab <- tab[, c(3:4, 1:2, 5:8, 9:ncol(tab))]
   }
 
   rownames(tab) <- item_names()
