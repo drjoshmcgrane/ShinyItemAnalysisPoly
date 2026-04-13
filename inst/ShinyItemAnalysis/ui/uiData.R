@@ -42,6 +42,7 @@ uiData <- tabPanel(
               "MSAT-B" = "MSATB_difNLR",
               "Medical 100" = "dataMedical_ShinyItemAnalysis",
               "Medical 100 Graded" = "dataMedicalgraded_ShinyItemAnalysis",
+              "Medical 100 Combined" = "Medical100combined_local",
               "Science" = "Science_mirt"
             ),
             selected = "GMAT_difNLR"
