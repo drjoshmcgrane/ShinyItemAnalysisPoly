@@ -14,7 +14,7 @@ This is a fork of [ShinyItemAnalysis](https://github.com/patriciamar/ShinyItemAn
  * Observed proportion overlays with configurable number of groups
  * Mixed-category data support (binary and polytomous items in the same dataset)
  * Medical 100 Combined test dataset (binary + polytomous)
- * Infit/outfit MNSQ statistics for Rasch and 1PL models
+ * Infit/outfit MNSQ statistics for Rasch family models
 
 All original ShinyItemAnalysis functionality is preserved.
 
