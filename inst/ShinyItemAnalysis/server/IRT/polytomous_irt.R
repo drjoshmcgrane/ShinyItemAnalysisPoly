@@ -364,21 +364,6 @@ IRT_poly_summary_coef_reactive <- reactive({
     }
   }
 
-  # Italicise parameter names to match dichotomous table style
-  nms <- colnames(tab)
-  skip <- c("SX2-value", "df", "p-value", "Outfit MNSQ", "Infit MNSQ",
-            "Location", "SE(Location)")
-  for (i in seq_along(nms)) {
-    if (nms[i] %in% skip) next
-    if (grepl("^SE\\(", nms[i])) {
-      inner <- sub("^SE\\((.+)\\)$", "\\1", nms[i])
-      nms[i] <- paste0("SE(\\(\\mathit{", inner, "}\\))")
-    } else {
-      nms[i] <- paste0("\\(\\mathit{", nms[i], "}\\)")
-    }
-  }
-  colnames(tab) <- nms
-
   tab_fit <- tryCatch(
     itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
     error = function(e) NULL
@@ -400,6 +385,22 @@ IRT_poly_summary_coef_reactive <- reactive({
     }
   }
 
+  # Italicise parameter names to match dichotomous table style
+  # Must be done AFTER all data.frame() calls to avoid make.names() mangling
+  nms <- colnames(tab)
+  skip <- c("SX2-value", "df", "p-value", "Outfit MNSQ", "Infit MNSQ",
+            "Location", "SE(Location)")
+  for (i in seq_along(nms)) {
+    if (nms[i] %in% skip) next
+    if (grepl("^SE\\(", nms[i])) {
+      inner <- sub("^SE\\((.+)\\)$", "\\1", nms[i])
+      nms[i] <- paste0("SE(\\(\\mathit{", inner, "}\\))")
+    } else {
+      nms[i] <- paste0("\\(\\mathit{", nms[i], "}\\)")
+    }
+  }
+  colnames(tab) <- nms
+
   rownames(tab) <- item_names()
   tab
 })
@@ -409,7 +410,9 @@ output$IRT_poly_summary_coef <- renderTable(
     IRT_poly_summary_coef_reactive()
   },
   include.rownames = TRUE,
-  include.colnames = TRUE
+  include.colnames = TRUE,
+  striped = TRUE,
+  na = ""
 )
 
 output$IRT_poly_summary_coef_download <- downloadHandler(
@@ -666,6 +669,7 @@ IRT_poly_wrightmap_args_reactive <- reactive({
   fscore <- as.vector(fscores(fit))
   pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
   b_cols <- grep("^b\\d", colnames(pars))
+  req(length(b_cols) > 0)
 
   if (model == "RSM") {
     # RSM: shared thresholds b_j + item-specific location c.
@@ -700,7 +704,7 @@ IRT_poly_wrightmap_plots <- reactive({
   n_steps <- ncol(b_matrix)
 
   # Build data frame of thresholds: one row per item-step
-  df_b <- do.call(rbind, lapply(seq_along(inames), function(i) {
+  df_list <- lapply(seq_along(inames), function(i) {
     steps <- b_matrix[i, ]
     valid <- !is.na(steps)
     if (!any(valid)) return(NULL)
@@ -710,7 +714,9 @@ IRT_poly_wrightmap_plots <- reactive({
       Difficulty = as.numeric(steps[valid]),
       stringsAsFactors = FALSE
     )
-  }))
+  })
+  df_b <- do.call(rbind, df_list)
+  req(!is.null(df_b) && nrow(df_b) > 0)
   df_b$Item <- factor(df_b$Item, levels = inames)
 
   binwidth <- 0.5
