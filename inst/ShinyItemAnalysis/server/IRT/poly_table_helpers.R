@@ -8,7 +8,30 @@
 build_nrm_table       <- function(fit, use_irt) stop("not yet implemented")
 build_grm_table       <- function(fit) stop("not yet implemented")
 build_masters_table   <- function(fit, model) stop("not yet implemented")
-append_fit_stats      <- function(tab, fit, include_infit) stop("not yet implemented")
+append_fit_stats <- function(tab, fit, include_infit) {
+  sx2 <- tryCatch(
+    itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
+    error = function(e) NULL
+  )
+  if (!is.null(sx2)) {
+    tab <- data.frame(tab, sx2, check.names = FALSE)
+    colnames(tab)[(ncol(tab) - 2):ncol(tab)] <-
+      c("SX2-value", "df", "p-value")
+  }
+
+  if (include_infit) {
+    infit <- tryCatch(
+      itemfit(fit, fit_stats = "infit")[, c("outfit", "infit")],
+      error = function(e) NULL
+    )
+    if (!is.null(infit)) {
+      tab <- data.frame(tab, infit, check.names = FALSE)
+      colnames(tab)[(ncol(tab) - 1):ncol(tab)] <-
+        c("Outfit MNSQ", "Infit MNSQ")
+    }
+  }
+  tab
+}
 italicise_colnames <- function(tab) {
   skip <- c("SX2-value", "df", "p-value", "Outfit MNSQ", "Infit MNSQ")
   nms <- colnames(tab)
