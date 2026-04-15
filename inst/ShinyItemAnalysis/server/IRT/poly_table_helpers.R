@@ -96,8 +96,85 @@ build_masters_table <- function(fit, model) {
   out
 }
 
-# RSM-specific stub, filled in by Task 7.
-.build_rsm_table <- function(fit, pars) stop("not yet implemented")
+# Returns a named list:
+#   shared_b : shared threshold vector (IRTpars = TRUE)
+#   c_vals   : per-item location vector
+#   thresholds_mat : n_items x n_steps matrix, b_ik = b_k - c_i
+#   ses_mat : n_items x n_steps matrix of delta-method SEs (NA on failure)
+rsm_threshold_ses_delta <- function(fit) {
+  pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
+  b_cols <- grep("^b\\d", colnames(pars), value = TRUE)
+  shared_b <- pars[1, b_cols]
+  c_vals   <- pars[, "c"]
+  thresholds_mat <- t(outer(as.numeric(shared_b), as.numeric(c_vals), "-"))
+  colnames(thresholds_mat) <- b_cols
+  rownames(thresholds_mat) <- rownames(pars)
+
+  ses_mat <- matrix(NA_real_, nrow = length(c_vals), ncol = length(b_cols),
+                    dimnames = list(rownames(pars), b_cols))
+
+  vc <- tryCatch(vcov(fit), error = function(e) NULL)
+  if (is.null(vc) || !is.matrix(vc) || nrow(vc) < 2) {
+    return(list(shared_b = shared_b, c_vals = c_vals,
+                thresholds_mat = thresholds_mat, ses_mat = ses_mat))
+  }
+
+  # In RSM, mirt collapses constrained parameters in vcov: each row is named
+  # like "b1.2.7.12.17.22" (shared step) or "c.10" (per-item location).
+  # Use the vcov rownames directly rather than matching est_df row count.
+  vc_nms <- rownames(vc)
+
+  for (i in seq_along(c_vals)) {
+    item_nm <- rownames(pars)[i]
+    # Get parnum for this item's c parameter from mod2values
+    par_df  <- mirt::mod2values(fit)
+    c_row   <- par_df[par_df$item == item_nm & par_df$name == "c" & par_df$est, ]
+    if (nrow(c_row) != 1) next
+    c_parnum <- c_row$parnum
+    # Find vcov row whose name contains this parnum for "c"
+    itm_c_idx <- grep(paste0("^c\\.", ".*\\b", c_parnum, "\\b"), vc_nms)
+    if (length(itm_c_idx) == 0) {
+      # fallback: any c.N where N == c_parnum
+      itm_c_idx <- which(vc_nms == paste0("c.", c_parnum))
+    }
+    if (length(itm_c_idx) != 1) next
+
+    for (k in seq_along(b_cols)) {
+      step_name <- paste0("b", k)     # mirt's RSM internal step name
+      # shared step appears as e.g. "b1.2.7.12.17.22"
+      step_idx  <- grep(paste0("^", step_name, "\\."), vc_nms)
+      if (length(step_idx) != 1) next
+      var_bk <- vc[step_idx, step_idx]
+      var_ci <- vc[itm_c_idx, itm_c_idx]
+      cov_bc <- vc[step_idx, itm_c_idx]
+      v <- var_bk + var_ci - 2 * cov_bc
+      if (is.finite(v) && v > 0) ses_mat[i, k] <- sqrt(v)
+    }
+  }
+
+  list(shared_b = shared_b, c_vals = c_vals,
+       thresholds_mat = thresholds_mat, ses_mat = ses_mat)
+}
+
+.build_rsm_table <- function(fit, pars) {
+  n_items <- nrow(pars)
+  delta <- rsm_threshold_ses_delta(fit)
+
+  a_vec <- rep(1, n_items)
+  a_ses <- rep(NA_real_, n_items)
+
+  b_mat <- delta$thresholds_mat
+  b_ses <- delta$ses_mat
+
+  a_df <- data.frame(a = a_vec, `SE(a)` = a_ses,
+                     check.names = FALSE, stringsAsFactors = FALSE)
+  b_df <- .interleave_with_ses(b_mat, b_ses)
+  out  <- data.frame(a_df, b_df, check.names = FALSE,
+                     stringsAsFactors = FALSE)
+  rownames(out) <- rownames(pars)
+  out
+}
+
 append_fit_stats <- function(tab, fit, include_infit) {
   sx2 <- tryCatch(
     itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
@@ -146,4 +223,3 @@ strip_katex <- function(tab) {
   colnames(tab) <- nms
   tab
 }
-rsm_threshold_ses_delta <- function(fit) stop("not yet implemented")
