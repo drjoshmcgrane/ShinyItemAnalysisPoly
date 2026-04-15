@@ -2,6 +2,14 @@
 # POLYTOMOUS IRT MODELS (NRM, GRM, RSM, PCM, GPCM) ####
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+# User-adjustable theta range for polytomous tab plots. Falls back to
+# the default [-6, 6] if the slider hasn't initialised yet.
+IRT_poly_thetas <- reactive({
+  rng <- input$IRT_poly_theta_range
+  if (is.null(rng) || length(rng) != 2 || rng[1] >= rng[2]) rng <- c(-6, 6)
+  seq(rng[1], rng[2], length.out = 500)
+})
+
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * MODEL FITTING ####
@@ -317,7 +325,7 @@ output$IRT_poly_summary_coef_download <- downloadHandler(
 IRT_poly_summary_expected_reactive <- reactive({
   fit <- IRT_poly_model()
   data <- ordinal()
-  thetas <- IRT_thetas_for_plots()
+  thetas <- IRT_poly_thetas()
   mod_item_names <- fit@Data$data |> colnames()
 
   d <- map2_dfr(
@@ -376,7 +384,7 @@ output$IRT_poly_summary_expected_download <- downloadHandler(
 # ** Item information curves (Summary) ####
 IRT_poly_summary_iic_reactive <- reactive({
   fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
+  thetas <- IRT_poly_thetas()
   mod_item_names <- fit@Data$data |> colnames()
 
   d <- map2_dfr(
@@ -424,7 +432,7 @@ output$IRT_poly_summary_iic_download <- downloadHandler(
 # ** Test information curve and SE (Summary) ####
 IRT_poly_summary_tic_reactive <- reactive({
   fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
+  thetas <- IRT_poly_thetas()
 
   test_info_se <- tibble(
     Ability = thetas,
@@ -676,7 +684,7 @@ IRT_poly_items_expected_reactive <- reactive({
   req(item)
   fit <- IRT_poly_model()
   data <- ordinal()
-  thetas <- IRT_thetas_for_plots()
+  thetas <- IRT_poly_thetas()
 
   probs <- probtrace(extract.item(fit, item), thetas)
   n_cats <- ncol(probs)
@@ -742,7 +750,7 @@ IRT_poly_items_icc_reactive <- reactive({
   req(item)
   fit <- IRT_poly_model()
   data <- ordinal()
-  thetas <- IRT_thetas_for_plots()
+  thetas <- IRT_poly_thetas()
 
   probs <- as_tibble(probtrace(extract.item(fit, item), thetas))
   # Use actual response values from ordinal data for category names
@@ -823,7 +831,7 @@ IRT_poly_items_iic_reactive <- reactive({
   item <- input$IRT_poly_items
   req(item)
   fit <- IRT_poly_model()
-  thetas <- IRT_thetas_for_plots()
+  thetas <- IRT_poly_thetas()
 
   d <- tibble(
     Ability = thetas,

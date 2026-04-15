@@ -44,6 +44,14 @@ uiPolyIRTModels <- tabPanel(
               )
             )
           )
+        ),
+        column(
+          4,
+          sliderInput(
+            inputId = "IRT_poly_theta_range",
+            label = "Latent trait (logit) range for plots",
+            min = -10, max = 10, value = c(-6, 6), step = 0.5
+          )
         )
       ),
       uiOutput("IRT_poly_model_description_ui"),
