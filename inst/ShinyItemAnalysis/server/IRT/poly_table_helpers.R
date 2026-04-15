@@ -62,7 +62,42 @@ build_grm_table <- function(fit) {
 
   .interleave_with_ses(pars, ses)
 }
-build_masters_table   <- function(fit, model) stop("not yet implemented")
+build_masters_table <- function(fit, model) {
+  stopifnot(model %in% c("RSM", "PCM", "GPCM"))
+
+  pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
+  n_items <- nrow(pars)
+
+  if (model == "RSM") {
+    return(.build_rsm_table(fit, pars))   # implemented in Task 7
+  }
+
+  # PCM / GPCM share the same shape.
+  pars <- .fold_binary_pars(pars)
+
+  b_cols <- grep("^b\\d", colnames(pars), value = TRUE)
+  b_mat  <- pars[, b_cols, drop = FALSE]
+  b_ses  <- .ses_to_matrix(fit, b_cols, fold_b_into_b1 = TRUE)
+
+  if (model == "PCM") {
+    a_vec   <- rep(1, n_items)
+    a_ses   <- rep(NA_real_, n_items)
+  } else { # GPCM
+    a_vec <- if ("a" %in% colnames(pars)) pars[, "a"] else rep(NA_real_, n_items)
+    a_ses <- .ses_to_matrix(fit, "a", fold_b_into_b1 = FALSE)[, "a"]
+  }
+
+  a_df <- data.frame(a = a_vec, `SE(a)` = a_ses,
+                     check.names = FALSE, stringsAsFactors = FALSE)
+  b_df <- .interleave_with_ses(b_mat, b_ses)
+  out  <- data.frame(a_df, b_df, check.names = FALSE,
+                     stringsAsFactors = FALSE)
+  rownames(out) <- rownames(pars)
+  out
+}
+
+# RSM-specific stub, filled in by Task 7.
+.build_rsm_table <- function(fit, pars) stop("not yet implemented")
 append_fit_stats <- function(tab, fit, include_infit) {
   sx2 <- tryCatch(
     itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
