@@ -219,6 +219,33 @@ would include KaTeX-wrapped names. Add a plain-name export path (strip
 italicisation) before `write.csv`, matching the dichotomous download which
 rewrites columns before writing.
 
+## Sample "Selected R code"
+
+The footer of each polytomous model tab displays a reproducible R script
+(`inst/ShinyItemAnalysis/sc/irt/{grm,rsm,pcm,gpcm,bock}.R`). These must
+reproduce what the app shows. Current gaps:
+
+| File | Issue |
+|---|---|
+| `grm.R` | OK — uses `IRTpars = TRUE`, `itemfit(fit)`, no Wright map |
+| `rsm.R` | Uses `coef(fit, simplify = TRUE)` without `IRTpars = TRUE`; Wright map uses wrong column pattern (`grep("^d", ...)`) and doesn't derive item-specific thresholds shown in the app |
+| `pcm.R` | Uses `coef(fit, simplify = TRUE)` without `IRTpars = TRUE`; Wright map uses wrong column pattern |
+| `gpcm.R` | Missing Wright map entirely — the app renders one for GPCM |
+| `bock.R` | Out of scope (NRM untouched) |
+
+Updates required:
+
+- **grm.R:** no changes.
+- **rsm.R:** switch coef calls to `IRTpars = TRUE`; add the per-item
+  threshold derivation `b_ik = b_k − c_i` so the printed parameter table
+  matches the app; fix Wright map to use derived item-specific thresholds.
+- **pcm.R:** switch coef calls to `IRTpars = TRUE`; fix Wright map to use
+  `grep("^b\\d", ...)` columns from `IRTpars = TRUE` output.
+- **gpcm.R:** add Wright map section using `grep("^b\\d", ...)` columns.
+- All four: reference the delta-method / fit-statistic patterns the app uses
+  where relevant, so users who run the sample locally can reproduce the
+  displayed SEs and fit columns (SX2 always; infit/outfit only for RSM/PCM).
+
 ## Out of Scope
 
 - NRM table internals (all four parametrizations stay as-is).
