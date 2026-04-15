@@ -290,7 +290,6 @@ IRT_poly_summary_coef_reactive <- reactive({
 
   tab <- append_fit_stats(tab, fit,
                           include_infit = model %in% c("RSM", "PCM"))
-  tab <- italicise_colnames(tab)
   rownames(tab) <- item_names()
   tab
 })
@@ -310,7 +309,7 @@ output$IRT_poly_summary_coef_download <- downloadHandler(
     paste0("tab_IRT_poly_", input$IRT_poly_model, "_parameters.csv")
   },
   content = function(file) {
-    write.csv(strip_katex(IRT_poly_summary_coef_reactive()), file)
+    write.csv(IRT_poly_summary_coef_reactive(), file)
   }
 )
 
