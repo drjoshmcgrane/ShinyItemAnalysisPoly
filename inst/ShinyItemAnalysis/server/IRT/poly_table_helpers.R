@@ -51,8 +51,30 @@
   par_tab[, !colnames(par_tab) %in% drop_cols, drop = FALSE]
 }
 
-# Forward declarations - filled in by subsequent tasks.
-build_nrm_table       <- function(fit, use_irt) stop("not yet implemented")
+build_nrm_table <- function(fit, use_irt) {
+  pars <- coef(fit, IRTpars = use_irt, simplify = TRUE)$items
+
+  target_cols <- colnames(pars)
+  ses <- .ses_to_matrix_nrm(fit, target_cols, use_irt)
+
+  .interleave_with_ses(pars, ses)
+}
+
+# NRM uses its own parametrization flag, so it can't share .ses_to_matrix
+# which hard-codes IRTpars = TRUE.
+.ses_to_matrix_nrm <- function(fit, target_cols, use_irt) {
+  se_list <- coef(fit, IRTpars = use_irt, printSE = TRUE)
+  se_list[["GroupPars"]] <- NULL
+  mat <- do.call(rbind, lapply(seq_along(se_list), function(i) {
+    se_row <- se_list[[i]]["SE", ]
+    out <- setNames(rep(NA_real_, length(target_cols)), target_cols)
+    keep <- intersect(target_cols, names(se_row))
+    out[keep] <- se_row[keep]
+    out
+  }))
+  colnames(mat) <- target_cols
+  mat
+}
 build_grm_table <- function(fit) {
   pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
   pars <- .fold_binary_pars(pars)
