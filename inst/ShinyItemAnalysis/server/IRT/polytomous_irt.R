@@ -272,126 +272,37 @@ output$IRT_poly_summary_coef_note <- renderUI({
 
 # ** Table of parameters (Summary) ####
 IRT_poly_summary_coef_reactive <- reactive({
-  fit <- IRT_poly_model()
+  fit   <- IRT_poly_model()
   model <- input$IRT_poly_model
   req(model)
 
-  if (model == "NRM") {
-    use_irt <- isTRUE(input$IRT_poly_nrm_parametrization %in% c("blirt", "bock"))
-  } else {
-    use_irt <- TRUE
-  }
-  par_tab <- coef(fit, IRTpars = use_irt, simplify = TRUE)$items
-
-  # For mixed-category data (e.g., PCM/GPCM/GRM): binary items get a,b,g,u columns
-  # while polytomous items get a,b1,b2,... Move binary 'b' into 'b1' and drop b,g,u
-  # (keep 'a' for GPCM/GRM where it is the discrimination parameter)
-  if (model %in% c("PCM", "GPCM", "GRM") && "b" %in% colnames(par_tab) && "b1" %in% colnames(par_tab)) {
-    b_col <- par_tab[, "b"]
-    b1_col <- par_tab[, "b1"]
-    # For binary items: b has a value, b1 is NA; copy b into b1
-    needs_copy <- !is.na(b_col) & is.na(b1_col)
-    par_tab[needs_copy, "b1"] <- b_col[needs_copy]
-    # Drop columns that are fixed/uninformative: b, g, u always; a only for PCM (always 1)
-    drop_cols <- intersect(c("b", "g", "u"), colnames(par_tab))
-    if (model == "PCM") drop_cols <- c(drop_cols, intersect("a", colnames(par_tab)))
-    par_tab <- par_tab[, !colnames(par_tab) %in% drop_cols, drop = FALSE]
-  }
-
-  # For RSM: thresholds (b1, b2, ...) are shared across items.
-  # Keep only the item-specific location parameter (c) and rename it.
-  if (model == "RSM") {
-    shared_cols <- grep("^(a1|b\\d)", colnames(par_tab))
-    par_tab <- par_tab[, -shared_cols, drop = FALSE]
-    colnames(par_tab) <- gsub("^c$", "Location", colnames(par_tab))
-  }
-
-  if (dim(fit@vcov)[1] > 1) {
-    se_list <- coef(fit, IRTpars = use_irt, printSE = TRUE)
-    se_list[["GroupPars"]] <- NULL
-
-    if (model == "RSM") {
-      # Extract SE for location parameter only (last column before GroupPars)
-      se_tab <- do.call(rbind, lapply(seq_along(se_list), function(i) {
-        se_row <- se_list[[i]]["SE", ]
-        # Keep only the 'c' parameter SE (last one)
-        c_idx <- which(names(se_row) == "c")
-        if (length(c_idx) == 0) c_idx <- length(se_row)
-        se_row[c_idx]
-      }))
-      colnames(se_tab) <- "SE(Location)"
-      tab <- data.frame(par_tab, se_tab)
-    } else {
-      # Column names in par_tab after any mixed-category cleanup
-      keep_cols <- colnames(par_tab)
-      se_tab <- do.call(rbind, lapply(seq_along(se_list), function(i) {
-        se_row <- se_list[[i]]["SE", ]
-        se_names <- names(se_row)
-        # For mixed-category data: apply same column logic as par_tab
-        # Binary items have a,b,g,u; polytomous have a,b1,b2,...
-        # If we dropped a,b,g,u from par_tab, match by name instead of truncating
-        if ("b" %in% se_names && !("b" %in% keep_cols) && "b1" %in% keep_cols) {
-          # This is a binary item with b but no b1 in its SE row; copy b -> b1
-          if (!"b1" %in% se_names) {
-            se_row["b1"] <- se_row["b"]
-          } else if (is.na(se_row["b1"])) {
-            se_row["b1"] <- se_row["b"]
-          }
-        }
-        # Select only the columns that exist in par_tab
-        out <- rep(NA_real_, length(keep_cols))
-        names(out) <- keep_cols
-        matched <- intersect(keep_cols, names(se_row))
-        out[matched] <- se_row[matched]
-        out
-      }))
-      colnames(se_tab) <- keep_cols
-      tab <- cbind(par_tab, se_tab)[, order(c(seq(ncol(par_tab)), seq(ncol(se_tab))))]
-      par_names <- colnames(par_tab)
-      col_names <- as.vector(rbind(par_names, paste0("SE(", par_names, ")")))
-      colnames(tab) <- col_names
-    }
-  } else {
-    if (model == "RSM") {
-      tab <- data.frame(par_tab, `SE(Location)` = NA, check.names = FALSE)
-    } else {
-      se_tab <- matrix(NA_real_, nrow = nrow(par_tab), ncol = ncol(par_tab))
-      colnames(se_tab) <- colnames(par_tab)
-      tab <- cbind(par_tab, se_tab)[, order(c(seq(ncol(par_tab)), seq(ncol(se_tab))))]
-      par_names <- colnames(par_tab)
-      col_names <- as.vector(rbind(par_names, paste0("SE(", par_names, ")")))
-      colnames(tab) <- col_names
-    }
-  }
-
-  tab_fit <- tryCatch(
-    itemfit(fit, na.rm = TRUE)[, c("S_X2", "df.S_X2", "p.S_X2")],
-    error = function(e) NULL
+  tab <- switch(model,
+    "NRM"  = build_nrm_table(
+      fit,
+      use_irt = isTRUE(input$IRT_poly_nrm_parametrization %in%
+                         c("blirt", "bock"))
+    ),
+    "GRM"  = build_grm_table(fit),
+    "RSM"  = build_masters_table(fit, "RSM"),
+    "PCM"  = build_masters_table(fit, "PCM"),
+    "GPCM" = build_masters_table(fit, "GPCM")
   )
-  if (!is.null(tab_fit)) {
-    tab <- data.frame(tab, tab_fit)
-    fit_cols <- (ncol(tab) - 2):ncol(tab)
-    colnames(tab)[fit_cols] <- c("SX2-value", "df", "p-value")
-  }
 
-  if (model == "PCM") {
-    infit_tab <- tryCatch(
-      itemfit(fit, fit_stats = "infit")[, c("outfit", "infit")],
-      error = function(e) NULL
-    )
-    if (!is.null(infit_tab)) {
-      tab <- data.frame(tab, infit_tab)
-      colnames(tab)[(ncol(tab) - 1):ncol(tab)] <- c("Outfit MNSQ", "Infit MNSQ")
-    }
-  }
-
+  tab <- append_fit_stats(tab, fit,
+                          include_infit = model %in% c("RSM", "PCM"))
+  tab <- italicise_colnames(tab)
   rownames(tab) <- item_names()
   tab
 })
 
 output$IRT_poly_summary_coef <- renderTable(
-  IRT_poly_summary_coef_reactive(),
-  rownames = TRUE, striped = TRUE, na = ""
+  {
+    IRT_poly_summary_coef_reactive()
+  },
+  include.rownames = TRUE,
+  include.colnames = TRUE,
+  striped = TRUE,
+  na = ""
 )
 
 output$IRT_poly_summary_coef_download <- downloadHandler(
@@ -399,7 +310,7 @@ output$IRT_poly_summary_coef_download <- downloadHandler(
     paste0("tab_IRT_poly_", input$IRT_poly_model, "_parameters.csv")
   },
   content = function(file) {
-    write.csv(IRT_poly_summary_coef_reactive(), file)
+    write.csv(strip_katex(IRT_poly_summary_coef_reactive()), file)
   }
 )
 
