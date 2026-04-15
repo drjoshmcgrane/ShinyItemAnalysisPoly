@@ -2,8 +2,8 @@ library(mirt)
 library(ShinyItemAnalysis)
 
 # loading data
-data(CZmaturaS, package = "ShinyItemAnalysis")
-Data <- CZmaturaS[, grep("^b", names(CZmaturaS))]
+data(Anxiety, package = "ShinyItemAnalysis")
+Data <- Anxiety[, paste0("R", 1:29)]
 
 # fitting Graded Response Model (GRM)
 fit <- mirt(Data, model = 1, itemtype = "graded", SE = TRUE)
