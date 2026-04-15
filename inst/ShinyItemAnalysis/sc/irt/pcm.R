@@ -2,8 +2,8 @@ library(mirt)
 library(ShinyItemAnalysis)
 
 # loading data
-data(CZmaturaS, package = "ShinyItemAnalysis")
-Data <- CZmaturaS[, grep("^b", names(CZmaturaS))]
+data(Anxiety, package = "ShinyItemAnalysis")
+Data <- Anxiety[, paste0("R", 1:29)]
 
 # fitting Partial Credit Model (PCM)
 # mirt fits PCM when itemtype = "Rasch" is applied to polytomous data
@@ -16,14 +16,14 @@ plot(fit, type = "infotrace", facet_items = FALSE)
 # test information curve
 plot(fit, type = "infoSE")
 
-# estimated parameters
-coef(fit, simplify = TRUE)
-coef(fit, printSE = TRUE)
+# estimated parameters (IRT parametrization)
+coef(fit, IRTpars = TRUE, simplify = TRUE)
+coef(fit, IRTpars = TRUE, printSE = TRUE)
 
 # item fit statistics
 itemfit(fit)
 
-# infit and outfit statistics
+# infit and outfit statistics (PCM is Rasch-family)
 itemfit(fit, fit_stats = "infit")
 
 # factor scores vs standardized total scores
@@ -33,5 +33,6 @@ plot(fs ~ sts, xlab = "Standardized total score", ylab = "Factor score")
 cor(fs, sts)
 
 # Wright map
-b <- coef(fit, simplify = TRUE)$items
-ggWrightMap(fs, b[, grep("^d", colnames(b))])
+pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
+b <- pars[, grep("^b\\d", colnames(pars)), drop = FALSE]
+ggWrightMap(fs, b)
