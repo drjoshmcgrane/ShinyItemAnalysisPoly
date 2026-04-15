@@ -2,8 +2,8 @@ library(mirt)
 library(ShinyItemAnalysis)
 
 # loading data
-data(CZmaturaS, package = "ShinyItemAnalysis")
-Data <- CZmaturaS[, grep("^b", names(CZmaturaS))]
+data(Anxiety, package = "ShinyItemAnalysis")
+Data <- Anxiety[, paste0("R", 1:29)]
 
 # fitting Generalized Partial Credit Model (GPCM)
 fit <- mirt(Data, model = 1, itemtype = "gpcm", SE = TRUE)
@@ -27,3 +27,8 @@ fs <- as.vector(fscores(fit))
 sts <- as.vector(scale(rowSums(Data)))
 plot(fs ~ sts, xlab = "Standardized total score", ylab = "Factor score")
 cor(fs, sts)
+
+# Wright map
+pars <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items
+b <- pars[, grep("^b\\d", colnames(pars)), drop = FALSE]
+ggWrightMap(fs, b)
