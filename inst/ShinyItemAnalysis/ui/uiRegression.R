@@ -220,7 +220,7 @@ uiRegression <-
         )),
         column(2, selectInput(
           inputId = "regression_cumulative_parametrization",
-          label = "Parametrization",
+          label = "Parameterization",
           choices = c(
             "Intercept/slope" = "classic",
             "IRT" = "irt"
@@ -291,7 +291,7 @@ uiRegression <-
               "IRT" = "irt"
             ),
             selected = "irt",
-            label = "Parametrization"
+            label = "Parameterization"
           )
         ),
         column(
@@ -357,7 +357,7 @@ uiRegression <-
               "IRT" = "irt"
             ),
             selected = "irt",
-            label = "Parametrization"
+            label = "Parameterization"
           )
         ),
         column(

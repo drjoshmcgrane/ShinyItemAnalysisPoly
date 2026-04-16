@@ -42,7 +42,7 @@ startShinyItemAnalysis <- function(background = TRUE, ...) {
   offer_modules(...)
 
   run_app_script <- '
-  appDir <- system.file("ShinyItemAnalysis", package = "ShinyItemAnalysis")
+  appDir <- system.file("ShinyItemAnalysis", package = "ShinyItemAnalysisPoly")
   if (appDir == "") {
     stop("Could not find the app. Try re-installing `ShinyItemAnalysis`.", call. = FALSE)
   }
@@ -114,7 +114,7 @@ run_app <- function(background = TRUE, ...) {
 check_app_deps <- function(...) {
   # get Suggests info from the DESCRIPTION
   suggests <- read.dcf(
-    system.file("DESCRIPTION", package = "ShinyItemAnalysis"),
+    system.file("DESCRIPTION", package = "ShinyItemAnalysisPoly"),
     fields = "Suggests"
   )
 

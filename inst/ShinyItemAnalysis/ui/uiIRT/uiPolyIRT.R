@@ -23,7 +23,7 @@ uiPolyIRT <- tabPanel(
           2,
           selectInput(
             inputId = "IRT_bock_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             c(
               BLIS = "blis",
               BLIRT = "blirt",

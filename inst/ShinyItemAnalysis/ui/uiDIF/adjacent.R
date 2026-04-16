@@ -6,11 +6,11 @@ ui_DIF_adjacent <- tabPanel(
       "Summary",
       h3("Adjacent category logit model for DIF detection"),
       p("An adjacent category logit regression allows for detection of uniform and non-uniform DIF among ordinal
-        data by adding a group-membership variable (uniform DIF) and its interaction with observed score
+        data by adding a group-membership variable (uniform DIF) and its interaction with the matching criterion
         (non-uniform DIF) into a model for item \\(i\\) and by testing for their significance."),
       h4("Method specification"),
       p(
-        "Here you can change the ", strong("type"), " of DIF to be tested, the ", strong("Observed score", .noWS = "outside"),
+        "Here you can change the ", strong("type"), " of DIF to be tested, the ", strong("Matching criterion", .noWS = "outside"),
         ", and", strong("parametrization"), "- either based on IRT models or classical intercept/slope. You can also
         select the ", strong("correction method"), " for multiple comparison and/or ", strong("item purification. ")
       ),
@@ -32,10 +32,11 @@ ui_DIF_adjacent <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_adjacent_summary_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -44,7 +45,7 @@ ui_DIF_adjacent <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_adjacent_summary_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -77,8 +78,8 @@ ui_DIF_adjacent <- tabPanel(
       ),
       h4("Equation"),
       p(
-        "The probability that respondent ", strong("\\(p\\)"), " with the observed score (e.g., standardized total
-        score) ", strong("\\(Z_p\\)"), " and the group membership variable ", strong("\\(G_p\\)"), " obtained ",
+        "The probability that respondent ", strong("\\(p\\)"), " with matching criterion value ",
+        strong("\\(Z_p\\)"), " (or \\(\\theta_p\\) when using IRT \u03B8) and the group membership variable ", strong("\\(G_p\\)"), " obtained ",
         strong("\\(k\\)"), " points in item ", strong("\\(i\\)"), " is given by the following equation: "
       ),
       fluidRow(column(12, align = "center", uiOutput("DIF_adjacent_summary_equation"))),
@@ -112,11 +113,11 @@ ui_DIF_adjacent <- tabPanel(
       value = "acl_it",
       h3("Adjacent category logit model for DIF detection"),
       p("An adjacent category logit regression allows for detection of uniform and non-uniform DIF among ordinal
-        data by adding a group-membership variable (uniform DIF) and its interaction with observed score
+        data by adding a group-membership variable (uniform DIF) and its interaction with the matching criterion
         (non-uniform DIF) into a model for item \\(i\\) and by testing for their significance."),
       h4("Method specification"),
       p(
-        "Here you can change ", strong("type"), " of DIF to be tested, ", strong("Observed score", .noWS = "outside"),
+        "Here you can change ", strong("type"), " of DIF to be tested, ", strong("Matching criterion", .noWS = "outside"),
         ", and", strong("parametrization"), "- either based on IRT models or classical intercept/slope. You can also
         select ", strong("correction method"), " for multiple comparison and/or ", strong("item purification. ")
       ),
@@ -138,10 +139,11 @@ ui_DIF_adjacent <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_adjacent_items_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -150,7 +152,7 @@ ui_DIF_adjacent <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_adjacent_items_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -195,9 +197,8 @@ ui_DIF_adjacent <- tabPanel(
       ),
       uiOutput("DIF_adjacent_items_na_alert"),
       h4("Plot with estimated DIF curves"),
-      p("Points represent proportion of obtained score with respect to the observed score. Their size is determined
-        by count of respondents who achieved given level of the observed score and who selected given option with
-        respect to the group membership."),
+      p("Points represent proportion of obtained score with respect to the matching criterion. Their size is determined
+        by the count of respondents at a given level of the matching criterion, split by group membership."),
       plotlyOutput("DIF_adjacent_items_plot"),
       downloadButton("DIF_adjacent_items_plot_download", label = "Download figure"),
       h4("Equation"),

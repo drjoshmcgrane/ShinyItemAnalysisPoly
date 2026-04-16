@@ -6,6 +6,9 @@ source("ui/uiIRT/uiDIRT.R", local = T, encoding = "UTF-8")
 # source polytomous IRT UI (only NRM for the moment)
 source("ui/uiIRT/uiPolyIRT.R", local = T, encoding = "UTF-8")
 
+# source polytomous IRT models UI (GRM, RSM, PCM, GPCM)
+source("ui/uiIRT/uiPolyIRTModels.R", local = T, encoding = "UTF-8")
+
 # polytomous methods training
 source("ui/uiIRT/uiPolyTraining.R", local = T, encoding = "UTF-8")
 
@@ -58,11 +61,19 @@ uiIRT <- navbarMenu(
             2,
             selectInput(
               inputId = "IRT_binary_summary_parametrization",
-              label = "Parametrization",
+              label = "Parameterization",
               choices = c(
                 "IRT" = "irt",
                 "Intercept/slope" = "classical"
               )
+            )
+          ),
+          column(
+            4,
+            sliderInput(
+              inputId = "IRT_dich_theta_range",
+              label = "Latent trait (logit) range for plots",
+              min = -10, max = 10, value = c(-6, 6), step = 0.5
             )
           )
         ),
@@ -103,7 +114,8 @@ uiIRT <- navbarMenu(
           "Estimates of item parameters can be displayed using the IRT or intercept/slope ",
           strong("parametrization,"), "which can be selected at the top of this tab. Parameter estimates
                  are completed by SX2 item fit statistics (Orlando & Thissen, 2000). SX2 statistics are computed
-                 only when no missing data are present."
+                 only when no missing data are present.",
+          "For Rasch and 1PL models, infit and outfit mean-square statistics (Wright & Masters, 1982) are also provided."
         ),
         tableOutput("IRT_binary_summary_coef"),
         downloadButton(
@@ -116,7 +128,10 @@ uiIRT <- navbarMenu(
         h4("Ability estimates"),
         p("This table shows the response and factor scores for only six respondents. If you want to see the
                  scores for all respondents, click on", strong("Download abilities"), "button."),
+        checkboxInput("IRT_binary_use_wle",
+                      "Use WLE scores (default: EAP)", value = FALSE),
         tableOutput("IRT_binary_summary_ability"),
+        textOutput("IRT_binary_summary_ability_reliability_text"),
         downloadButton(
           outputId = "IRT_binary_summary_ability_download",
           label = "Download abilities"
@@ -205,7 +220,7 @@ uiIRT <- navbarMenu(
             2,
             selectInput(
               inputId = "IRT_binary_items_parametrization",
-              label = "Parametrization",
+              label = "Parameterization",
               choices = c(
                 "IRT" = "irt",
                 "Intercept/slope" = "classical"
@@ -218,6 +233,25 @@ uiIRT <- navbarMenu(
               inputId = "IRT_binary_items", label = "Item",
               min = 1, value = 1, max = 20,
               step = 1, animate = TRUE
+            )
+          ),
+          column(
+            3,
+            checkboxInput(
+              inputId = "IRT_binary_items_show_observed",
+              label = "Show observed proportions",
+              value = FALSE
+            )
+          ),
+          column(
+            2,
+            conditionalPanel(
+              condition = "input.IRT_binary_items_show_observed == true",
+              numericInput(
+                inputId = "IRT_binary_observed_groups",
+                label = "Number of groups",
+                value = 3, min = 2, max = 20, step = 1
+              )
             )
           )
         ),
@@ -249,7 +283,8 @@ uiIRT <- navbarMenu(
           "Estimates of item parameters can be displayed using the IRT or intercept/slope ",
           strong("parametrization,"), "which can be selected at the top of this tab. Parameter estimates
                  are completed by SX2 item fit statistics (Orlando & Thissen, 2000). SX2 statistics are computed
-                 only when no missing data are present."
+                 only when no missing data are present.",
+          "For Rasch and 1PL models, infit and outfit mean-square statistics (Wright & Masters, 1982) are also provided."
         ),
         fluidRow(column(12, align = "center", tableOutput("IRT_binary_items_coef"))),
 
@@ -306,7 +341,8 @@ uiIRT <- navbarMenu(
   ),
   "----",
   "Polytomous models",
-  uiPolyIRT, # UI sourced in the beginning of this .R file
+  uiPolyIRTModels,     # Unified polytomous models with dropdown (NRM, GRM, RSM, PCM, GPCM)
+  uiPolyIRTComparison, # Polytomous model comparison
   "----",
   "Training",
   # * TRAINING  ####

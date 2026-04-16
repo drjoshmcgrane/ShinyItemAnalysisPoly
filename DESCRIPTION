@@ -1,10 +1,12 @@
 Type: Package
-Package: ShinyItemAnalysis
-Title: Test and Item Analysis via Shiny
-Version: 1.5.5
+Package: ShinyItemAnalysisPoly
+Title: Test and Item Analysis via Shiny (Extended Polytomous IRT Fork)
+Version: 1.5.5.9000
 Date: 2025-07-10
 Authors@R: c(
-    person("Patricia", "Martinkova", , "martinkova@cs.cas.cz", role = c("aut", "cre"),
+    person("Josh", "McGrane", , "josh.mcgrane@uwa.edu.au", role = c("aut", "cre"),
+           comment = "Polytomous IRT extensions"),
+    person("Patricia", "Martinkova", , "martinkova@cs.cas.cz", role = "aut",
            comment = c(ORCID = "0000-0003-4754-8543")),
     person("Adela", "Hladka", role = "aut",
            comment = c(ORCID = "0000-0002-9112-1208")),
@@ -16,13 +18,16 @@ Authors@R: c(
     person("Tomas", "Jurica", role = "ctb"),
     person("Jana", "Vorlickova", role = "ctb")
   )
-Description: Package including functions and interactive shiny application
-    for the psychometric analysis of educational tests, psychological
-    assessments, health-related and other types of multi-item
-    measurements, or ratings from multiple raters.
+Description: Fork of ShinyItemAnalysis with extended polytomous IRT model
+    support (GRM, RSM, PCM, GPCM) alongside the existing NRM. Includes
+    unified model selection, model comparison with LRT, Wright maps,
+    observed proportion overlays, and mixed-category data handling.
+    Based on the original package for psychometric analysis of educational
+    tests, psychological assessments, health-related and other types of
+    multi-item measurements, or ratings from multiple raters.
 License: GPL-3
-URL: https://shinyitemanalysis.org/
-BugReports: https://github.com/patriciamar/ShinyItemAnalysis/issues
+URL: https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly
+BugReports: https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly/issues
 Depends:
     R (>= 4.1.0)
 Imports:

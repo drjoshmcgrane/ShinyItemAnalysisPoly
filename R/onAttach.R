@@ -1,7 +1,7 @@
 .onAttach <- function(libname, pkgname) {
   packageStartupMessage(
-    paste("This is ShinyItemAnalysis version "), packageVersion("ShinyItemAnalysis"),
-    "\n- to run the interactive {shiny} app, call `run_app()`",
-    "\n- to learn more, visit `ShinyItemAnalysis.org`"
+    paste("This is ShinyItemAnalysisPoly version "), packageVersion("ShinyItemAnalysisPoly"),
+    "\n- to run the interactive {shiny} app, call `run_app(background = FALSE)`",
+    "\n- fork of ShinyItemAnalysis with extended polytomous IRT support"
   )
 }

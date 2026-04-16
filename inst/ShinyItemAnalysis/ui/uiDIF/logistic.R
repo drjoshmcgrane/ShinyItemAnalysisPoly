@@ -14,10 +14,10 @@ ui_DIF_logistic <- tabPanel(
         models or classical intercept/slope. You can also select a ", strong("correction method"), " for multiple comparison and/or
         ", strong("item purification. "), "You can also select whether apply them in simple (correction applied after purification)
         or iterative (correction applied after each purification iteration)", strong("combination"), "(Hladka, Martinkova, & Magis,
-        2023). Finally, you may also change the ", strong("Observed score."), " While matching on the standardized total score is
-        typical, the upload of other observed scores is possible in the ", strong("Data. "), "section. Using a pre-test (standardized)
-        total score as the observed score allows for testing a differential item functioning in change (DIF-C) to provide proofs of
-        instructional sensitivity ",
+        2023). Finally, you may also change the ", strong("Matching criterion"), "- the variable used to condition on ability.
+        Options include the standardized total score, IRT \u03B8 estimates, or an uploaded external variable
+        (e.g., from the ", strong("Data "), "section). Using a pre-test score allows for testing differential item functioning
+        in change (DIF-C) to provide proofs of instructional sensitivity ",
         a("(Martinkova et al., 2020), ",
           href = "https://doi.org/10.1016/j.learninstruc.2019.101286",
           target = "_blank"
@@ -41,10 +41,11 @@ ui_DIF_logistic <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_logistic_summary_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -53,7 +54,7 @@ ui_DIF_logistic <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_logistic_summary_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -94,7 +95,7 @@ ui_DIF_logistic <- tabPanel(
       ),
       h4("Equation"),
       p(
-        "The probability that respondent ", strong("\\(p\\)"), " with the observed score ",
+        "The probability that respondent ", strong("\\(p\\)"), " with matching criterion ",
         uiOutput("DIF_logistic_summary_matching_text", inline = TRUE), " and the group membership variable ",
         strong("\\(G_p\\)"), " answers correctly item \\(i\\) is given by the following equation: "
       ),
@@ -139,9 +140,10 @@ ui_DIF_logistic <- tabPanel(
         models or classical intercept/slope. You can also select a ", strong("correction method"), " for multiple comparison and/or
         ", strong("item purification. "), "You can also select whether apply them in simple (correction applied after purification)
         or iterative (correction applied after each purification iteration)", strong("combination."), "Finally, you may also change
-        the ", strong("Observed score."), " While matching on the standardized total score is typical, the upload of other observed
-        scores is possible in the ", strong("Data "), "section. Using a pre-test (standardized) total score as the observed score
-        allows for testing a differential item functioning in change (DIF-C) to provide proofs of instructional sensitivity ",
+        the ", strong("Matching criterion"), "- the variable used to condition on ability.
+        Options include the standardized total score, IRT \u03B8 estimates, or an uploaded external variable
+        (e.g., from the ", strong("Data "), "section). Using a pre-test score allows for testing differential item functioning
+        in change (DIF-C) to provide proofs of instructional sensitivity ",
         a("(Martinkova et al., 2020), ",
           href = "https://doi.org/10.1016/j.learninstruc.2019.101286",
           target = "_blank"
@@ -166,10 +168,11 @@ ui_DIF_logistic <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_logistic_items_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -178,7 +181,7 @@ ui_DIF_logistic <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_logistic_items_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -231,14 +234,13 @@ ui_DIF_logistic <- tabPanel(
       ),
       uiOutput("DIF_logistic_items_NA_warning"),
       h4("Plot with estimated DIF logistic curve"),
-      p("Points represent a proportion of the correct answer (empirical probabilities) with respect to the observed score. Their size is determined
-        by the count of respondents who achieved a given level of the observed score and who selected given option with
-        respect to the group membership."),
+      p("Points represent empirical probabilities of the correct answer with respect to the matching criterion. Their size is determined
+        by the count of respondents at a given level of the matching criterion, split by group membership."),
       plotlyOutput("DIF_logistic_items_plot"),
       downloadButton("DIF_logistic_items_plot_download", label = "Download figure"),
       h4("Equation"),
       p(
-        "The probability that respondent ", strong("\\(p\\)"), " with the observed score ",
+        "The probability that respondent ", strong("\\(p\\)"), " with matching criterion ",
         uiOutput("DIF_logistic_items_matching_text", inline = TRUE), " and the group membership variable ",
         strong("\\(G_p\\)"), " answers correctly item \\(i\\) is given by the following equation: "
       ),

@@ -674,7 +674,7 @@ uiPolyTraining <- tabPanel(
       ),
       br(),
       uiOutput("irt_training_nrm_sliders"),
-      h4("Parametrizations"),
+      h4("Parameterizations"),
       p(
         "In the following tables, BLIRT parameters you have set above are",
         "presented in all parametrizations described in the introductory paragraphs.",

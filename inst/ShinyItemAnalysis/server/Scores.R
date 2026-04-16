@@ -78,8 +78,8 @@ totalscores_table_Input <- reactive({
           Mean = ~ mean(.x, na.rm = TRUE),
           Median = ~ median(.x, na.rm = TRUE),
           SD = ~ sd(.x, na.rm = TRUE),
-          Skewness = ~ ShinyItemAnalysis:::skewness(.x),
-          Kurtosis = ~ ShinyItemAnalysis:::kurtosis(.x)
+          Skewness = ~ ShinyItemAnalysisPoly:::skewness(.x),
+          Kurtosis = ~ ShinyItemAnalysisPoly:::kurtosis(.x)
         ),
         .names = "{.fn}"
       )

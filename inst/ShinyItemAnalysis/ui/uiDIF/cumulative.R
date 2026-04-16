@@ -6,11 +6,11 @@ ui_DIF_cumulative <- tabPanel(
       "Summary",
       h3("Cumulative logit model for DIF detection"),
       p("Cumulative logit regression allows for detection of uniform and non-uniform DIF among ordinal data by
-        adding a group-membership variable (uniform DIF) and its interaction with observed score
+        adding a group-membership variable (uniform DIF) and its interaction with the matching criterion
         (non-uniform DIF) into a model for item \\(i\\) and by testing for their significance."),
       h4("Method specification"),
       p(
-        "Here you can change the ", strong("type"), " of DIF to be tested, the ", strong("Observed score", .noWS = "outside"),
+        "Here you can change the ", strong("type"), " of DIF to be tested, the ", strong("Matching criterion", .noWS = "outside"),
         ", and the ", strong("parametrization"), "- either the IRT or the classical intercept/slope. You can also
         select a ", strong("correction method"), " for a multiple comparison and/or ", strong("item purification. ")
       ),
@@ -32,10 +32,11 @@ ui_DIF_cumulative <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_cumulative_summary_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -44,7 +45,7 @@ ui_DIF_cumulative <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_cumulative_summary_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -77,14 +78,14 @@ ui_DIF_cumulative <- tabPanel(
       ),
       h4("Equation"),
       p(
-        "The probability that respondent ", strong("\\(p\\)"), " with the observed score (e.g., standardized total
-        score) ", strong("\\(Z_p\\)"), " and the group membership variable ", strong("\\(G_p\\)"), " obtained at least ",
+        "The probability that respondent ", strong("\\(p\\)"), " with matching criterion value ",
+        strong("\\(Z_p\\)"), " (or \\(\\theta_p\\) when using IRT \u03B8)", " and the group membership variable ", strong("\\(G_p\\)"), " obtained at least ",
         strong("\\(k\\)"), " points in item ", strong("\\(i\\)"), " is given by the following equation: "
       ),
       fluidRow(column(12, align = "center", uiOutput("DIF_cumulative_summary_equation_cumulative"))),
       p(
-        "The probability that respondent ", strong("\\(p\\)"), " with the observed score (e.g., standardized total
-        score) ", strong("\\(Z_p\\)"), " and group membership ", strong("\\(G_p\\)"), " obtained exactly ", strong("\\(k\\)"),
+        "The probability that respondent ", strong("\\(p\\)"), " with matching criterion value ",
+        strong("\\(Z_p\\)"), " (or \\(\\theta_p\\) when using IRT \u03B8)", " and group membership ", strong("\\(G_p\\)"), " obtained exactly ", strong("\\(k\\)"),
         " points in item ", strong("\\(i\\)"), " is then given as the difference between the probabilities of obtaining at least",
         strong("\\(k\\)"), " and ", strong("\\(k + 1\\)"), "points: "
       ),
@@ -121,11 +122,11 @@ ui_DIF_cumulative <- tabPanel(
       value = "cumulative_it",
       h3("Cumulative logit model for DIF detection"),
       p("Cumulative logit regression allows for detection of uniform and non-uniform DIF among ordinal data by
-        adding a group-membership variable (uniform DIF) and its interaction with observed score
+        adding a group-membership variable (uniform DIF) and its interaction with the matching criterion
         (non-uniform DIF) into a model for item \\(i\\) and by testing for their significance."),
       h4("Method specification"),
       p(
-        "Here you can change the ", strong("type"), " of DIF to be tested, the ", strong("Observed score", .noWS = "outside"),
+        "Here you can change the ", strong("type"), " of DIF to be tested, the ", strong("Matching criterion", .noWS = "outside"),
         ", and the ", strong("parametrization"), "- either the IRT or classical intercept/slope. You can also
         select a ", strong("correction method"), " for a multiple comparison and/or ", strong("item purification. ")
       ),
@@ -147,10 +148,11 @@ ui_DIF_cumulative <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_cumulative_items_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -159,7 +161,7 @@ ui_DIF_cumulative <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_cumulative_items_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -204,9 +206,8 @@ ui_DIF_cumulative <- tabPanel(
       ),
       uiOutput("DIF_cumulative_items_na_alert"),
       h4("Plot with estimated DIF curves"),
-      p("Points represent a proportion of the obtained score with respect to the observed score. Their size is determined
-        by the count of respondents who achieved a given level of the observed score and who selected given option with
-        respect to the group membership."),
+      p("Points represent a proportion of the obtained score with respect to the matching criterion. Their size is determined
+        by the count of respondents at a given level of the matching criterion, split by group membership."),
       splitLayout(
         cellWidths = c("50%", "50%"),
         plotlyOutput("DIF_cumulative_items_plot_cumulative"),

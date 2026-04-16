@@ -13,7 +13,7 @@ author: |
   
   `r ifelse(params$author == "", "", params$author)`
   
-  This report was created on `r format(Sys.Date(), "%B %d %Y")` using ShinyItemAnalysis: Test and item analysis, version `r packageVersion("ShinyItemAnalysis")`
+  This report was created on `r format(Sys.Date(), "%B %d %Y")` using ShinyItemAnalysis: Test and item analysis, version `r packageVersion("ShinyItemAnalysisPoly")`
     
   **************
   
@@ -92,7 +92,7 @@ body {text-align: justify}
 
 # Introduction
 
-This report was created by R version `r getRversion()` and its package ShinyItemAnalysis version `r packageVersion("ShinyItemAnalysis")`. ShinyItemAnalysis provides test and item analysis and it is available on [CRAN](https://CRAN.R-project.org/package=ShinyItemAnalysis) and also [online](https://shiny.cs.cas.cz/ShinyItemAnalysis/). 
+This report was created by R version `r getRversion()` and its package ShinyItemAnalysis version `r packageVersion("ShinyItemAnalysisPoly")`. ShinyItemAnalysis provides test and item analysis and it is available on [CRAN](https://CRAN.R-project.org/package=ShinyItemAnalysis) and also [online](https://shiny.cs.cas.cz/ShinyItemAnalysis/). 
 
 To cite ShinyItemAnalysis application in publications, please, use:
 

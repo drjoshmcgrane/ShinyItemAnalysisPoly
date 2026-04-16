@@ -171,6 +171,23 @@ observeEvent(c(input$data_toydata, data_csvdata_current_status$unloaded == 1), {
     # key2binary is much more faster than the old approach, but it is
     # only usable when maximum score is considered as the key
     toydata_binary <- mirt::key2binary(toydata_ordinal, toydata_key)
+  } else if (toydata_name == "Medical100combined") {
+    # ** Medical 100 Combined (binary + polytomous mixed) ####
+    toydata_data_type <- "ordinal"
+
+    toydata_ordinal <- read.csv("Medical100combined.csv", row.names = 1)
+    toydata_continuous <- toydata_ordinal
+    toydata_nominal <- toydata_ordinal
+
+    toydata_group <- "missing"
+    toydata_criterion <- "missing"
+    toydata_DIFmatching <- "missing"
+
+    toydata_minimal <- sapply(toydata_ordinal, min, na.rm = TRUE)
+    toydata_maximal <- sapply(toydata_ordinal, max, na.rm = TRUE)
+
+    toydata_key <- toydata_maximal
+    toydata_binary <- mirt::key2binary(toydata_ordinal, toydata_key)
   } else if (toydata_name == "Science") {
     # ** Science ####
     toydata_data_type <- "ordinal"
@@ -1204,6 +1221,12 @@ data_description_Input <- reactive({
                 or not. For analyses where dichotomous items are necessary (e.g., logistic models in Regression, IRT models, or
                 DIF detection methods), data are binarized &ndash; <code>'1'</code> means that student gained maximum
                 number of points, i.e., 4; otherwise the item is scored as <code>'0'</code>. ",
+                Medical100combined_local = "<code>Medical 100 Combined</code> combines the binary Medical 100 dataset
+                (items X2001&ndash;X2010, scored 0/1) with the graded Medical 100 dataset (items X2011&ndash;X2020,
+                scored 0&ndash;4). The dataset has 2,392 respondents and 20 items with mixed numbers of response
+                categories, making it useful for testing polytomous IRT models that allow unequal category
+                structures (e.g., PCM, GPCM) and for verifying that the RSM correctly rejects data with
+                unequal numbers of categories across items. ",
                 HCI_ShinyItemAnalysis = "<code>HCI</code> <a href='http://dx.doi.org/10.1187/cbe.16-10-0305' target='_blank'>(McFarland et al.,
                 2017)</a> is a real dataset of the Homeostasis Concept Inventory (HCI) from the <code>ShinyItemAnalysis</code> package.
                 The dataset represents the responses of 651 subjects (405 males coded as <code>'0'</code>, 246 females coded as

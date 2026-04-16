@@ -10,7 +10,7 @@ ui_DIF_multinomial <- tabPanel(
         log-linear regression model. "),
       h4("Method specification"),
       p(
-        "Here you can change the ", strong("type"), " of DDF to be tested, the ", strong("Observed score", .noWS = "outside"),
+        "Here you can change the ", strong("type"), " of DDF to be tested, the ", strong("Matching criterion", .noWS = "outside"),
         ", and the", strong("parametrization"), "- either IRT or intercept/slope. You can also
         select the ", strong("correction method"), " for a multiple comparison and/or ", strong("item purification. ")
       ),
@@ -32,10 +32,11 @@ ui_DIF_multinomial <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_multinomial_summary_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -44,7 +45,7 @@ ui_DIF_multinomial <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_multinomial_summary_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -128,7 +129,7 @@ ui_DIF_multinomial <- tabPanel(
         log-linear regression model. "),
       h4("Method specification"),
       p(
-        "Here you can change the ", strong("type"), " of DDF to be tested, the ", strong("Observed score", .noWS = "outside"),
+        "Here you can change the ", strong("type"), " of DDF to be tested, the ", strong("Matching criterion", .noWS = "outside"),
         ", and the", strong("parametrization"), "- either IRT or intercept/slope. You can also
         select the ", strong("correction method"), " for a multiple comparison and/or ", strong("item purification. ")
       ),
@@ -150,10 +151,11 @@ ui_DIF_multinomial <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_multinomial_items_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "Total score" = "score",
-              "Standardized total score" = "zscore"
+              "Standardized total score" = "zscore",
+              "IRT \u03B8" = "theta"
             ),
             selected = "zscore"
           )
@@ -162,7 +164,7 @@ ui_DIF_multinomial <- tabPanel(
           2,
           selectInput(
             inputId = "DIF_multinomial_items_parametrization",
-            label = "Parametrization",
+            label = "Parameterization",
             choices = c(
               "Intercept/slope" = "classic",
               "IRT" = "irt"
@@ -207,8 +209,8 @@ ui_DIF_multinomial <- tabPanel(
       ),
       uiOutput("DIF_multinomial_items_na_alert"),
       h4("Plot with estimated DDF curves"),
-      p("Points represent a proportion of the response selection with respect to the observed score. Their size is determined
-        by the count of respondents from a given group who achieved a given level of the observed score and who selected a given response option."),
+      p("Points represent the proportion of each response option with respect to the matching criterion. Their size is determined
+        by the count of respondents at a given level of the matching criterion, split by group membership."),
       plotlyOutput("DIF_multinomial_items_plot"),
       downloadButton("DIF_multinomial_items_plot_download", label = "Download figure"),
       downloadButton("DIF_multinomial_items_plot_download_all", label = "Download all figures"),

@@ -323,8 +323,8 @@ DDplot <- function(Data, item.names, discrim = "ULI", k = 3, l = 1, u = 3,
       theme_app() +
       theme(
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-        legend.position = c(0.01, 0.98),
-        legend.justification = c(0, 1),
+        legend.position = "top",
+        legend.justification = "left",
         legend.spacing.x = unit(0.1, "cm")
       )
 
@@ -364,8 +364,8 @@ DDplot <- function(Data, item.names, discrim = "ULI", k = 3, l = 1, u = 3,
       theme_app() +
       theme(
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-        legend.position = c(0.01, 0.98),
-        legend.justification = c(0, 1),
+        legend.position = "top",
+        legend.justification = "left",
         legend.spacing.x = unit(0.1, "cm")
       )
   }

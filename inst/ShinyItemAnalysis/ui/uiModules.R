@@ -1,4 +1,4 @@
-tab_title <- if (!sm_allow_gui_installation() | ShinyItemAnalysis:::sm_disabled()) {
+tab_title <- if (!sm_allow_gui_installation() | ShinyItemAnalysisPoly:::sm_disabled()) {
   "About the modules"
 } else {
   "About / Module management"
@@ -17,7 +17,7 @@ uiModules <- navbarMenu("Modules",
       "Because SIA modules come in ", code("R"), " packages (or extend the existing ones),",
       "they may come bundled with their own datasets, use compiled code, etc."
     ),
-    if (sm_allow_gui_installation() & !ShinyItemAnalysis:::sm_disabled()) {
+    if (sm_allow_gui_installation() & !ShinyItemAnalysisPoly:::sm_disabled()) {
       tagList(
         h3("Install modules"),
         p(

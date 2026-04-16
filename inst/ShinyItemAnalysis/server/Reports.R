@@ -293,8 +293,8 @@ report_IRT_binary_ability_table <- reactive({
       Mean = sapply(tab, mean, na.rm = TRUE),
       Median = sapply(tab, median, na.rm = TRUE),
       SD = sapply(tab, sd, na.rm = TRUE),
-      Skewness = sapply(tab, ShinyItemAnalysis:::skewness),
-      Kurtosis = sapply(tab, ShinyItemAnalysis:::kurtosis)
+      Skewness = sapply(tab, ShinyItemAnalysisPoly:::skewness),
+      Kurtosis = sapply(tab, ShinyItemAnalysisPoly:::kurtosis)
     )
     rownames(tab) <- c("Total Scores", "Z-Scores", "F-scores")
   }

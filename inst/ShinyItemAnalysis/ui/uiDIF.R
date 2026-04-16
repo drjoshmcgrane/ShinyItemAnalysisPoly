@@ -457,8 +457,9 @@ uiDIF <-
             strong("item purification. ")
           ),
           p(
-            "You may also change the ", strong("Observed score."), " While matching on the standardized total score is typical, the upload
-                                   of other Observed scores is possible in the ", strong("Data "), "section. Using a pre-test (standardized) total score allows
+            "You may also change the ", strong("Matching criterion."), " While matching on the standardized total score is typical,
+                                   IRT \u03B8 estimates or other uploaded scores are also available. Upload of external matching variables
+                                   is possible in the ", strong("Data "), "section. Using a pre-test (standardized) total score allows
                                    for testing differential item functioning in change (DIF-C) to provide proofs of instructional sensitivity ",
             a("(Martinkova et al., 2020),",
               href = "https://doi.org/10.1016/j.learninstruc.2019.101286",
@@ -534,8 +535,12 @@ uiDIF <-
               2,
               selectInput(
                 inputId = "DIF_NLR_summary_matching",
-                label = "Observed score",
-                choices = c("Standardized total score" = "zscore"),
+                label = "Matching criterion",
+                choices = c(
+                  "Total score" = "score",
+                  "Standardized total score" = "zscore",
+                  "IRT \u03B8" = "theta"
+                ),
                 selected = "zscore"
               )
             ),
@@ -625,8 +630,9 @@ uiDIF <-
             strong("item purification. ")
           ),
           p(
-            "You may also change the ", strong("Observed score."), " While matching on the standardized total score is typical, the upload
-                                   of other Observed scores is possible in the ", strong("Data "), "section. Using a pre-test (standardized) total score allows
+            "You may also change the ", strong("Matching criterion."), " While matching on the standardized total score is typical,
+                                   IRT \u03B8 estimates or other uploaded scores are also available. Upload of external matching variables
+                                   is possible in the ", strong("Data "), "section. Using a pre-test (standardized) total score allows
                                    for testing differential item functioning in change (DIF-C) to provide proofs of instructional sensitivity ",
             a("(Martinkova et al., 2020),",
               href = "https://doi.org/10.1016/j.learninstruc.2019.101286",
@@ -702,8 +708,12 @@ uiDIF <-
               2,
               selectInput(
                 inputId = "DIF_NLR_items_matching",
-                label = "Observed score",
-                choices = c("Standardized total score" = "zscore"),
+                label = "Matching criterion",
+                choices = c(
+                  "Total score" = "score",
+                  "Standardized total score" = "zscore",
+                  "IRT \u03B8" = "theta"
+                ),
                 selected = "zscore"
               )
             ),
@@ -749,8 +759,8 @@ uiDIF <-
             )
           ),
           h4("Plot with estimated DIF generalized logistic curve"),
-          p("Points represent a proportion of the correct answer (empirical probabilities) with respect to the observed score.
-                                   Their size is determined by the count of respondents who achieved a given level of observed score with respect
+          p("Points represent empirical probabilities of the correct answer with respect to the matching criterion.
+                                   Their size is determined by the count of respondents at a given level of the matching criterion with respect
                                    to the group membership."),
           uiOutput("DIF_NLR_items_na_alert"),
           plotlyOutput("DIF_NLR_items_plot"),
@@ -1113,7 +1123,7 @@ uiDIF <-
         # tags$li(strong('DDF'), 'is differential distractor functioning with multinomial log-linear regression model. ')
       ),
       h3("Table with method comparison"),
-      p("Settings for individual methods (Observed score, type of DIF to be tested,
+      p("Settings for individual methods (Matching criterion, type of DIF to be tested,
                         correction method, item purification) are taken from the subsection pages of given methods.
                         In case your settings are not unified, you can set some of them below. Note that changing
                         the options globaly can be computationaly demanding. This especially applies for a purification request.
@@ -1132,7 +1142,7 @@ uiDIF <-
           2,
           selectInput(
             inputId = "DIF_MC_matching",
-            label = "Observed score",
+            label = "Matching criterion",
             choices = c(
               "as is" = "asis",
               "(standardized) total scores" = "score"

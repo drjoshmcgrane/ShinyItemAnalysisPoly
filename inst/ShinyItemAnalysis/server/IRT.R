@@ -1,5 +1,7 @@
 # source server logic for polytomous IRT models
 source("server/IRT/polytomous.R", local = T, encoding = "UTF-8")
+source("server/IRT/poly_table_helpers.R", local = T, encoding = "UTF-8")
+source("server/IRT/polytomous_irt.R", local = T, encoding = "UTF-8")
 source("server/IRT/training.R", local = T, encoding = "UTF-8")
 
 
@@ -8,9 +10,18 @@ source("server/IRT/training.R", local = T, encoding = "UTF-8")
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # ** Thetas vector for plotting ####
-# length.out effectively specifies the "resolution" of plotted lines
+# length.out effectively specifies the "resolution" of plotted lines.
+# Reads the dichotomous tab's logit-range slider; falls back to [-6, 6]
+# when the slider hasn't initialised yet (e.g. during Reports rendering).
 IRT_thetas_for_plots <- reactive({
-  seq(-6, 6, length.out = 500)
+  rng <- input$IRT_dich_theta_range
+  if (is.null(rng) || length(rng) != 2 || rng[1] >= rng[2]) rng <- c(-6, 6)
+  seq(rng[1], rng[2], length.out = 500)
+})
+
+# EAP by default, WLE when the dichotomous checkbox is ticked.
+IRT_binary_fscore_method <- reactive({
+  if (isTRUE(input$IRT_binary_use_wle)) "WLE" else "EAP"
 })
 
 # ** Helper function for consistent colors ####
@@ -99,7 +110,7 @@ IRT_binary_model_rasch <- reactive({
     data,
     model = 1, itemtype = "Rasch",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -116,7 +127,7 @@ IRT_binary_model_1pl <- reactive({
     data,
     model = model, itemtype = "2PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -128,7 +139,7 @@ IRT_binary_model_2pl <- reactive({
     data,
     model = 1, itemtype = "2PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -140,7 +151,7 @@ IRT_binary_model_3pl <- reactive({
     data,
     model = 1, itemtype = "3PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -152,7 +163,7 @@ IRT_binary_model_4pl <- reactive({
     data,
     model = 1, itemtype = "4PL",
     SE = TRUE, verbose = FALSE,
-    technical = list(NCYCLES = input$ncycles)
+    technical = list(NCYCLES = input$ncycles), TOL = input$tol
   )
   fit
 })
@@ -427,6 +438,7 @@ IRT_binary_summary_icc <- reactive({
     geom_line() +
     ylab("Probability of correct answer") +
     theme_app()
+
   g
 })
 
@@ -611,6 +623,18 @@ IRT_binary_summary_coef <- reactive({
     colnames(tab)[9:11] <- c("SX2-value", "df", "p-value")
   }
 
+  # Add infit/outfit for Rasch and 1PL models
+  if (input$IRT_binary_summary_model %in% c("Rasch", "1PL")) {
+    infit_tab <- tryCatch(
+      itemfit(fit, fit_stats = "infit")[, c("outfit", "infit")],
+      error = function(e) NULL
+    )
+    if (!is.null(infit_tab)) {
+      tab <- data.frame(tab, infit_tab)
+      colnames(tab)[(ncol(tab) - 1):ncol(tab)] <- c("Outfit MNSQ", "Infit MNSQ")
+    }
+  }
+
   if (IRTpars) {
     colnames(tab)[1:8] <- paste0(
       c("", "SE("),
@@ -623,7 +647,7 @@ IRT_binary_summary_coef <- reactive({
       paste0("\\(\\mathit{", rep(c("\\beta_{1}", "\\beta_{0}", "c", "d"), each = 2), "}\\)"),
       c("", ")")
     )
-    tab <- tab[, c(3:4, 1:2, 5:8, 9:11)]
+    tab <- tab[, c(3:4, 1:2, 5:8, 9:ncol(tab))]
   }
 
   rownames(tab) <- item_names()
@@ -664,14 +688,19 @@ output$IRT_binary_summary_coef_download <- downloadHandler(
   }
 )
 
+# Raw mirt fscores matrix (keeps mirt's F1/SE_F1 colnames so
+# empirical_rxx() will accept it).
+IRT_binary_fscores_raw <- reactive({
+  fit <- IRT_binary_model()
+  fscores(fit, full.scores.SE = TRUE, method = IRT_binary_fscore_method())
+})
+
 # ** Ability estimates ####
 IRT_binary_summary_ability <- reactive({
-  fit <- IRT_binary_model()
-
   score <- as.vector(total_score())
   zscore <- as.vector(z_score())
   tscore <- as.vector(t_score())
-  fscore <- fscores(fit, full.scores.SE = TRUE)
+  fscore <- IRT_binary_fscores_raw()
 
   tab <- data.frame(score, zscore, tscore, fscore)
   colnames(tab) <- c("Total score", "Z-score", "T-score", "F-score", "SE(F-score)")
@@ -688,6 +717,23 @@ output$IRT_binary_summary_ability <- renderTable(
   include.rownames = TRUE
 )
 
+IRT_binary_reliability_reactive <- reactive({
+  emp  <- tryCatch(mirt::empirical_rxx(IRT_binary_fscores_raw()),
+                   error = function(e) NA_real_)
+  marg <- tryCatch(mirt::marginal_rxx(IRT_binary_model()),
+                   error = function(e) NA_real_)
+  list(method = IRT_binary_fscore_method(), empirical = emp, marginal = marg)
+})
+
+output$IRT_binary_summary_ability_reliability_text <- renderText({
+  r <- IRT_binary_reliability_reactive()
+  fmt <- function(x) if (is.na(x)) "NA" else sprintf("%.3f", x)
+  paste0(
+    "IRT reliability of ", r$method, " scores — empirical: ",
+    fmt(r$empirical), "; marginal: ", fmt(r$marginal), "."
+  )
+})
+
 # ** Download of ability estimates ####
 output$IRT_binary_summary_ability_download <- downloadHandler(
   filename = function() {
@@ -701,7 +747,7 @@ output$IRT_binary_summary_ability_download <- downloadHandler(
 # ** Ability estimates correlation ####
 IRT_binary_summary_ability_correlation <- reactive({
   fit <- IRT_binary_model()
-  fscore <- as.vector(fscores(fit))
+  fscore <- as.vector(IRT_binary_fscores_raw()[, 1])
   zscore <- z_score()
 
   cor <- cor(fscore, zscore, use = "pairwise.complete.obs")
@@ -720,7 +766,7 @@ output$IRT_binary_summary_ability_correlation_text <- renderText({
 # ** Ability estimates plot ####
 IRT_binary_summary_ability_plot <- reactive({
   fit <- IRT_binary_model()
-  fscore <- as.vector(fscores(fit))
+  fscore <- as.vector(IRT_binary_fscores_raw()[, 1])
   zscore <- z_score()
 
   df <- data.frame(fscore, zscore)
@@ -764,7 +810,7 @@ output$IRT_binary_summary_ability_plot_download <- downloadHandler(
 IRT_binary_summary_wrightmap_args <- reactive({
   fit <- IRT_binary_model()
 
-  fscore <- as.vector(fscores(fit))
+  fscore <- as.vector(IRT_binary_fscores_raw()[, 1])
   b <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items[, "b"]
   item.names <- item_names()
 
@@ -773,7 +819,7 @@ IRT_binary_summary_wrightmap_args <- reactive({
 
 output$IRT_binary_summary_wrightmap <- renderPlotly({
   # use internal Wright Map fun, returning separate "facets" in a list
-  plts <- ShinyItemAnalysis:::gg_wright_internal(
+  plts <- ShinyItemAnalysisPoly:::gg_wright_internal(
     theta = IRT_binary_summary_wrightmap_args()[[1]],
     b = IRT_binary_summary_wrightmap_args()[[2]],
     item.names = item_names()
@@ -876,6 +922,25 @@ IRT_binary_items_icc <- reactive({
     ggtitle(item_names()[item]) +
     ylim(0, 1) +
     theme_app()
+
+  # Overlay observed proportions if toggled on
+  if (isTRUE(input$IRT_binary_items_show_observed)) {
+    data <- binary()
+    fs <- as.vector(IRT_binary_fscores_raw()[, 1])
+    n_bins <- input$IRT_binary_observed_groups %||% 3
+    bins <- cut(fs, breaks = quantile(fs, probs = seq(0, 1, length.out = n_bins + 1)),
+                include.lowest = TRUE)
+    bin_mids <- tapply(fs, bins, mean)
+    obs_prop <- tapply(data[[item]], bins, mean, na.rm = TRUE)
+
+    obs_df <- tibble(
+      Ability = as.numeric(bin_mids),
+      Probability = as.numeric(obs_prop)
+    )
+    g <- g + geom_point(data = obs_df, aes(x = Ability, y = Probability),
+                        color = curve_col, size = 3, alpha = 0.7)
+  }
+
   g
 })
 

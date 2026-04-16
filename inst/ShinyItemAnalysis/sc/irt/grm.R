@@ -1,0 +1,29 @@
+library(mirt)
+library(ShinyItemAnalysis)
+
+# loading data
+data(Anxiety, package = "ShinyItemAnalysis")
+Data <- Anxiety[, paste0("R", 1:29)]
+
+# fitting Graded Response Model (GRM)
+fit <- mirt(Data, model = 1, itemtype = "graded", SE = TRUE)
+
+# item characteristic curves (category probability curves)
+plot(fit, type = "trace", facet_items = FALSE)
+# item information curves
+plot(fit, type = "infotrace", facet_items = FALSE)
+# test information curve
+plot(fit, type = "infoSE")
+
+# estimated parameters - IRT parametrization
+coef(fit, IRTpars = TRUE, simplify = TRUE)
+coef(fit, IRTpars = TRUE, printSE = TRUE)
+
+# item fit statistics
+itemfit(fit)
+
+# factor scores vs standardized total scores
+fs <- as.vector(fscores(fit))
+sts <- as.vector(scale(rowSums(Data)))
+plot(fs ~ sts, xlab = "Standardized total score", ylab = "Factor score")
+cor(fs, sts)

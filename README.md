@@ -1,93 +1,64 @@
-# ShinyItemAnalysis <img src="inst/ShinyItemAnalysis/www/sia_logo.svg" align="right" width=150/> 
-Test and item analysis via shiny
+# ShinyItemAnalysisPoly <img src="inst/ShinyItemAnalysis/www/sia_logo.svg" align="right" width=150/> 
+Extended polytomous IRT models for ShinyItemAnalysis
 
-<!-- badges: start -->
-[![R-CMD-check](https://github.com/patriciamar/ShinyItemAnalysis/workflows/R-CMD-check/badge.svg)](https://github.com/patriciamar/ShinyItemAnalysis/actions)
-![GHversion](https://img.shields.io/github/release/patriciamar/ShinyItemAnalysis.svg)
-[![online](https://img.shields.io/badge/online-1.5.5-yellow.svg)](https://shiny.cs.cas.cz/ShinyItemAnalysis/)
-[![version](https://www.r-pkg.org/badges/version/ShinyItemAnalysis)](https://CRAN.R-project.org/package=ShinyItemAnalysis)
-![cranlogs](https://cranlogs.r-pkg.org/badges/ShinyItemAnalysis)
-  <!-- badges: end -->
+## About this fork
 
-## Overview
-`ShinyItemAnalysis` is an R package including functions and interactive shiny application for the psychometric analysis of educational tests,
-    psychological assessments, health-related and other types of multi-item measurements, or ratings from multiple raters. 
-    Offered methods include:
+This is a fork of [ShinyItemAnalysis](https://github.com/patriciamar/ShinyItemAnalysis) by Martinkova et al., extended with full polytomous IRT model support. It is maintained by [Josh McGrane](https://github.com/drjoshmcgrane) for teaching and research purposes.
 
- * Exploration of total and standard scores
- * Analysis of correlation structure and validity
- * Analysis of measurement error and reliability
- * Traditional item analysis
- * Item analysis with regression models
- * Item analysis with IRT models
- * Detection of differential item functioning
- * ... and more via add-on modules 
+**What's new in this fork:**
 
-<p float="center">
-    <img src="https://cdn.jsdelivr.net/gh/patriciamar/ShinyItemAnalysis/.readme_assets/scrSIAintro.png" width="49%" />
-    <img src="https://cdn.jsdelivr.net/gh/patriciamar/ShinyItemAnalysis/.readme_assets/scrSIAdif.png" width="49%" />
-</p>
+ * Polytomous IRT models: GRM, RSM, PCM, and GPCM (in addition to the existing NRM)
+ * Unified polytomous model tab with dropdown model selector
+ * Polytomous model comparison with AIC, BIC, log-likelihood, and LRT for nested pairs (RSM vs PCM, PCM vs GPCM)
+ * Wright maps for RSM, PCM, and GPCM
+ * Observed proportion overlays with configurable number of groups
+ * Mixed-category data support (binary and polytomous items in the same dataset)
+ * Medical 100 Combined test dataset (binary + polytomous)
+ * Infit/outfit MNSQ statistics for Rasch family models
 
-Number of toy datasets is available, the interactive application also allows the users to upload and analyze their own data and to automatically generate PDF or HTML reports.
-
-`ShinyItemAnalysis` is available online at [Czech Academy of Sciences](https://shiny.cs.cas.cz/ShinyItemAnalysis/) and [shinyapps.io](https://cemp.shinyapps.io/ShinyItemAnalysis/). It can be also downloaded from [**CRAN**](https://CRAN.R-project.org/package=ShinyItemAnalysis). Visit our [**web page**](https://shinyitemanalysis.org/) about ShinyItemAnalysis to learn more!
+All original ShinyItemAnalysis functionality is preserved.
 
 ## Installation
 
-The easiest way to get `ShinyItemAnalysis` is to install it from CRAN:
+Install this fork from GitHub:
+
+```r
+if (!require(remotes)) install.packages("remotes")
+remotes::install_github("drjoshmcgrane/ShinyItemAnalysisPoly", dependencies = TRUE)
+```
+
+## Usage
+
+```r
+# run in the console (recommended)
+ShinyItemAnalysisPoly::run_app(background = FALSE)
+
+# or run as a background job in RStudio
+ShinyItemAnalysisPoly::run_app()
+```
+
+## Upstream
+
+This fork is based on [ShinyItemAnalysis v1.5.5](https://github.com/patriciamar/ShinyItemAnalysis) by Martinkova, Hladka, and Netik. The official CRAN version of ShinyItemAnalysis can be installed with:
 
 ```r
 install.packages("ShinyItemAnalysis")
 ```
 
-<p>
-<details>
-<summary><i>Click here for more information about installing versions 1.4.0+</i></summary>
-<p>From <code>ShinyItemAnalysis</code> version 1.4.0 on, only the most necessary package dependencies are installed out of the box. You may be prompted later on to install additional packages ensuring a smooth run of the interactive application. To install everything straight out, use rather:</p>
-  
-```r
-install.packages("ShinyItemAnalysis", dependencies = TRUE)
-```
-</details>
-</p>
-
-Or you can get the newest development version from GitHub:
-
-```r
-if(!require(remotes)) install.package("remotes")
-remotes::install_github("patriciamar/ShinyItemAnalysis")
-```
-
-## Version
-Current version available on [**CRAN**](https://CRAN.R-project.org/package=ShinyItemAnalysis) is 1.5.5. 
-The newest development version available on [**GitHub**](https://github.com/patriciamar/ShinyItemAnalysis) is 1.5.5.<br> 
-Version available online at [Czech Academy of Sciences](https://shiny.cs.cas.cz/ShinyItemAnalysis/) is 1.5.5. 
-Version available online at [shinyapps.io](https://cemp.shinyapps.io/ShinyItemAnalysis/) is 1.5.5. <br> 
-
-## Usage
-It is very easy to run `ShinyItemAnalysis` in `R`:
-
-```r
-ShinyItemAnalysis::run_app()
-# or
-ShinyItemAnalysis::startShinyItemAnalysis()
-```
-
-Or if you are an RStudio IDE user, simply click on `Run ShinyItemAnalysis` in [Addins](https://docs.posit.co/ide/user/ide/guide/productivity/add-ins.html) menu (located at the end of the toolbar). Last but not least, you can also try the app directly online at [Czech Academy of Sciences](https://shiny.cs.cas.cz/ShinyItemAnalysis/) or [shinyapps.io](https://cemp.shinyapps.io/ShinyItemAnalysis/)!
+Visit [shinyitemanalysis.org](https://shinyitemanalysis.org/) for documentation on the original package.
 
 ## References
-When using `ShinyItemAnalysis` software, we appreciate if you include a reference in your publications. To cite the software, please, use: 
 
-> Martinková P., & Hladká A. (2023) Computational Aspects of Psychometric Methods: With R. (1st ed.). Chapman and Hall/CRC. doi: 10.1201/9781003054313. ISBN 9781003054313.
+When using this software, please cite both the original package and this fork:
 
-> Martinková P., & Drabinová A. (2018) ShinyItemAnalysis for teaching psychometrics and to enforce routine analysis of educational tests. The R Journal, 10(2), 503-515.
-> [doi: 10.32614/RJ-2018-074](https://doi.org/10.32614/RJ-2018-074).
+> Martinková P., & Hladká A. (2023) Computational Aspects of Psychometric Methods: With R. (1st ed.). Chapman and Hall/CRC. doi: 10.1201/9781003054313.
 
-Czech speakers can also refer to paper in journal [Testforum](https://doi.org/10.5817/TF2017-9-129).
+> Martinková P., & Drabinová A. (2018) ShinyItemAnalysis for teaching psychometrics and to enforce routine analysis of educational tests. The R Journal, 10(2), 503-515. [doi: 10.32614/RJ-2018-074](https://doi.org/10.32614/RJ-2018-074).
 
-## Getting help and provide feedback
-If you find any bug or just need help with `ShinyItemAnalysis` you can [leave your message as an GitHub issue](https://github.com/patriciamar/ShinyItemAnalysis/issues) or directly contact us at [martinkova@cs.cas.cz](mailto:martinkova@cs.cas.cz). We warmly encourage you to provide your feedback using [Google form](https://docs.google.com/forms/d/e/1FAIpQLSdbk2mkDacMlhGQmkFPa4A-Z4KcFMMG1IXugM8eSTzN7m4xnA/viewform).
+## Getting help
+
+If you find a bug or need help with the polytomous extensions, [open an issue](https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly/issues). For issues with the core ShinyItemAnalysis functionality, please report upstream at [patriciamar/ShinyItemAnalysis](https://github.com/patriciamar/ShinyItemAnalysis/issues).
 
 ## License
-This program is free software and you can redistribute it and or modify it under the terms of the [GNU GPL 3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
+This program is free software under the terms of the [GNU GPL 3](https://www.gnu.org/licenses/gpl-3.0.en.html), the same license as the original ShinyItemAnalysis.

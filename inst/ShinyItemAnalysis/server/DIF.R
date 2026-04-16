@@ -142,8 +142,8 @@ DIF_total_table <- reactive({
           Mean = ~ mean(.x, na.rm = TRUE),
           Median = ~ median(.x, na.rm = TRUE),
           SD = ~ sd(.x, na.rm = TRUE),
-          Skewness = ~ ShinyItemAnalysis:::skewness(.x),
-          Kurtosis = ~ ShinyItemAnalysis:::kurtosis(.x)
+          Skewness = ~ ShinyItemAnalysisPoly:::skewness(.x),
+          Kurtosis = ~ ShinyItemAnalysisPoly:::kurtosis(.x)
         ),
         .names = "{.fn}"
       )
@@ -698,7 +698,7 @@ DIF_MH_model <- reactive({
   group <- unlist(group())
   data <- data.frame(binary())
 
-  fit <- ShinyItemAnalysis:::.difMH_edited(
+  fit <- ShinyItemAnalysisPoly:::.difMH_edited(
     Data = data, group = group, focal.name = 1,
     p.adjust.method = input$DIF_MH_summary_correction,
     purify = input$DIF_MH_summary_purification, puriadjType = input$DIF_MH_summary_combination
@@ -1022,7 +1022,7 @@ report_DIF_MH_model <- reactive({
     p.adjust.method_report <- input$report_DIF_MH_correction_method
     purify_report <- input$report_DIF_MH_purification
 
-    fit <- ShinyItemAnalysis:::.difMH_edited(
+    fit <- ShinyItemAnalysisPoly:::.difMH_edited(
       Data = data, group = group, focal.name = 1,
       p.adjust.method = p.adjust.method_report,
       purify = purify_report
@@ -1087,7 +1087,7 @@ DIF_SIBTEST_model <- reactive({
     errorClass = "validation-error"
   )
 
-  fit <- ShinyItemAnalysis:::.difSIBTEST_edited(
+  fit <- ShinyItemAnalysisPoly:::.difSIBTEST_edited(
     Data = data, group = group, focal.name = 1,
     type = input$DIF_SIBTEST_type,
     purify = input$DIF_SIBTEST_purification,
@@ -1329,6 +1329,7 @@ observe({
         choices = c(
           "Total score" = "score",
           "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta",
           "Uploaded" = "uploaded",
           "Standardized uploaded" = "zuploaded"
         ),
@@ -1342,7 +1343,8 @@ observe({
         paste0(i),
         choices = c(
           "Total score" = "score",
-          "Standardized total score" = "zscore"
+          "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta"
         ),
         selected = "zscore"
       )
@@ -1561,32 +1563,320 @@ observe({
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ####
 # ** METHOD ####
 
+# Fit a dichotomous IRT model on a subset of item columns using the user's
+# IRT tab model + EAP/WLE selection, and return the theta vector.
+.fit_binary_theta <- function(data, retained_idx, itemtype, method,
+                              ncycles, tol) {
+  item_dat <- as.data.frame(data)[, retained_idx, drop = FALSE]
+  if (itemtype == "1PL") {
+    s <- paste("F = 1-", ncol(item_dat), "\n",
+               "CONSTRAIN = (1-", ncol(item_dat), ", a1)")
+    model <- mirt::mirt.model(s)
+    fit <- mirt::mirt(item_dat, model = model, itemtype = "2PL",
+                      SE = FALSE, verbose = FALSE,
+                      technical = list(NCYCLES = ncycles), TOL = tol)
+  } else {
+    fit <- mirt::mirt(item_dat, model = 1, itemtype = itemtype,
+                      SE = FALSE, verbose = FALSE,
+                      technical = list(NCYCLES = ncycles), TOL = tol)
+  }
+  as.vector(mirt::fscores(fit, method = method))
+}
+
+# Custom theta-purification loop for logistic DIF: refits the IRT model on
+# the currently-retained (non-flagged) items each iteration and re-runs
+# difLogistic against the freshly-estimated theta. Stops when the flagged
+# set stabilises or max.iter is reached.
+difLogistic_theta_puri <- function(Data, group, focal.name, type,
+                                   p.adjust.method, fit_irt_fn,
+                                   max.iter = 10) {
+  n_items <- ncol(Data)
+  retained <- seq_len(n_items)
+  prev_flagged <- NA
+  difPur <- NULL
+  fit <- NULL
+  iter <- 0L
+
+  for (iter in 0:max.iter) {
+    theta <- fit_irt_fn(retained)
+    fit <- ShinyItemAnalysisPoly:::.difLogistic_edited(
+      Data = Data, group = group, match = theta, focal.name = focal.name,
+      type = type, p.adjust.method = p.adjust.method,
+      purify = FALSE, all.cov = TRUE
+    )
+    flagged_raw <- fit$DIFitems
+    flagged <- if (is.character(flagged_raw) &&
+                   flagged_raw[1] == "No DIF item detected") {
+      integer(0)
+    } else {
+      as.integer(flagged_raw)
+    }
+
+    row <- integer(n_items)
+    row[flagged] <- 1L
+    difPur <- rbind(difPur, row)
+
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    retained_new <- setdiff(seq_len(n_items), flagged)
+    if (length(retained_new) < 2L) break
+    retained <- retained_new
+    prev_flagged <- flagged
+  }
+
+  fit$nrPur <- max(0L, nrow(difPur) - 1L)
+  fit$conv.puri <- iter < max.iter
+  fit$convergence <- fit$conv.puri
+  rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
+  colnames(difPur) <- colnames(Data)
+  fit$difPur <- difPur
+  fit$purification <- TRUE
+  fit
+}
+
+difNLR_theta_puri <- function(Data, group, focal.name, model, type,
+                              p.adjust.method, method, fit_irt_fn,
+                              max.iter = 10) {
+  n_items <- ncol(Data)
+  retained <- seq_len(n_items)
+  prev_flagged <- NA
+  difPur <- NULL
+  fit <- NULL
+  iter <- 0L
+
+  for (iter in 0:max.iter) {
+    theta <- fit_irt_fn(retained)
+    fit <- tryCatch(
+      difNLR(
+        Data = Data, group = group, focal.name = focal.name,
+        match = theta, model = model, type = type,
+        p.adjust.method = p.adjust.method, purify = FALSE,
+        test = "LR", method = method
+      ),
+      error = function(e) e
+    )
+    if (!inherits(fit, "difNLR")) break
+
+    flagged_raw <- fit$DIFitems
+    flagged <- if (is.character(flagged_raw) &&
+                   flagged_raw[1] == "No DIF item detected") {
+      integer(0)
+    } else {
+      as.integer(flagged_raw)
+    }
+
+    row <- integer(n_items)
+    row[flagged] <- 1L
+    difPur <- rbind(difPur, row)
+
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    retained_new <- setdiff(seq_len(n_items), flagged)
+    if (length(retained_new) < 2L) break
+    retained <- retained_new
+    prev_flagged <- flagged
+  }
+
+  if (inherits(fit, "difNLR")) {
+    fit$nrPur <- max(0L, nrow(difPur) - 1L)
+    fit$conv.puri <- iter < max.iter
+    fit$convergence <- fit$conv.puri
+    rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
+    colnames(difPur) <- colnames(Data)
+    fit$difPur <- difPur
+    fit$purification <- TRUE
+  }
+  fit
+}
+
+.ddfMLR_theta_puri <- function(Data, group, focal.name, key, type,
+                               p.adjust.method, fit_irt_fn,
+                               max.iter = 10) {
+  n_items <- ncol(Data)
+  retained <- seq_len(n_items)
+  prev_flagged <- NA
+  difPur <- NULL
+  fit <- NULL
+  iter <- 0L
+
+  for (iter in 0:max.iter) {
+    theta <- fit_irt_fn(retained)
+    fit <- tryCatch(
+      ddfMLR(
+        Data = Data, group = group, focal.name = focal.name,
+        match = theta, key = key, type = type,
+        p.adjust.method = p.adjust.method, purify = FALSE
+      ),
+      error = function(e) e
+    )
+    if (!inherits(fit, "ddfMLR")) break
+
+    flagged_raw <- fit$DDFitems
+    flagged <- if (is.character(flagged_raw) &&
+                   flagged_raw[1] == "No DDF item detected") {
+      integer(0)
+    } else {
+      as.integer(flagged_raw)
+    }
+
+    row <- integer(n_items)
+    row[flagged] <- 1L
+    difPur <- rbind(difPur, row)
+
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    retained_new <- setdiff(seq_len(n_items), flagged)
+    if (length(retained_new) < 2L) break
+    retained <- retained_new
+    prev_flagged <- flagged
+  }
+
+  if (inherits(fit, "ddfMLR")) {
+    fit$nrPur <- max(0L, nrow(difPur) - 1L)
+    fit$conv.puri <- iter < max.iter
+    fit$convergence <- fit$conv.puri
+    rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
+    colnames(difPur) <- colnames(Data)
+    fit$difPur <- difPur
+    fit$purification <- TRUE
+  }
+  fit
+}
+
+# Build a theta-refitting function for polytomous DIF using the user's
+# IRT poly tab model + EAP/WLE selection. Returns a closure that takes
+# retained item indices and returns a theta vector.
+.poly_theta_fit_fn <- function(data) {
+  model_name <- input$IRT_poly_model %||% "GPCM"
+  method     <- if (isTRUE(input$IRT_poly_use_wle)) "WLE" else "EAP"
+  ncycles    <- input$ncycles
+  tol        <- input$tol
+  itemtype <- switch(model_name,
+    NRM  = "nominal",
+    GRM  = "graded",
+    RSM  = "rsm",
+    PCM  = "Rasch",
+    GPCM = "gpcm",
+    "gpcm"
+  )
+  function(retained_idx) {
+    item_dat <- as.data.frame(data)[, retained_idx, drop = FALSE]
+    if (itemtype == "nominal") {
+      item_dat <- purrr::modify(item_dat,
+                                function(x) as.integer(as.factor(x)) - 1L)
+    }
+    fit <- mirt::mirt(item_dat, model = 1, itemtype = itemtype,
+                      SE = FALSE, verbose = FALSE,
+                      technical = list(NCYCLES = ncycles), TOL = tol)
+    as.vector(mirt::fscores(fit, method = method))
+  }
+}
+
+# Theta-purification loop for difORD (cumulative/adjacent DIF). Refits the
+# polytomous IRT model on retained items each iteration and re-runs
+# difORD(purify = FALSE, match = theta). Stops when the flagged set
+# stabilises or max.iter is reached.
+.difORD_theta_puri <- function(Data, group, focal.name, model, type,
+                               p.adjust.method, fit_irt_fn,
+                               max.iter = 10) {
+  n_items <- ncol(Data)
+  retained <- seq_len(n_items)
+  prev_flagged <- NA
+  difPur <- NULL
+  fit <- NULL
+  iter <- 0L
+
+  for (iter in 0:max.iter) {
+    theta <- fit_irt_fn(retained)
+    fit <- difNLR::difORD(
+      Data = Data, group = group, focal.name = focal.name,
+      model = model, match = theta, type = type,
+      purify = FALSE, p.adjust.method = p.adjust.method
+    )
+    flagged_raw <- fit$DIFitems
+    flagged <- if (is.character(flagged_raw) &&
+                   flagged_raw[1] == "No DIF item detected") {
+      integer(0)
+    } else {
+      as.integer(flagged_raw)
+    }
+
+    row <- integer(n_items)
+    row[flagged] <- 1L
+    difPur <- rbind(difPur, row)
+
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    retained_new <- setdiff(seq_len(n_items), flagged)
+    if (length(retained_new) < 2L) break
+    retained <- retained_new
+    prev_flagged <- flagged
+  }
+
+  fit$nrPur <- max(0L, nrow(difPur) - 1L)
+  fit$conv.puri <- iter < max.iter
+  fit$convergence <- fit$conv.puri
+  rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
+  colnames(difPur) <- colnames(Data)
+  fit$difPur <- difPur
+  fit$purification <- TRUE
+  fit
+}
+
+# Resolve the match argument for logistic DIF from an input id. Returns
+# either the string "score"/"zscore" (when difLogistic should compute it
+# internally) or a numeric vector (uploaded/theta).
+.resolve_logistic_match <- function(input_id, data) {
+  val <- input[[input_id]]
+  if (val == "uploaded") {
+    unlist(DIFmatching())
+  } else if (val == "zuploaded") {
+    scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
+  } else if (val == "theta") {
+    as.vector(IRT_binary_fscores_raw()[, 1])
+  } else {
+    val  # "score" or "zscore"
+  }
+}
+
 # ** Method fit ####
 DIF_logistic_model <- reactive({
   group <- unlist(group())
   data <- data.frame(binary())
 
-  if (input$DIF_logistic_summary_matching == "uploaded") {
-    match <- unlist(DIFmatching())
-  } else if (input$DIF_logistic_summary_matching == "zuploaded") {
-    match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
-  } else if (input$DIF_logistic_summary_matching == "zscore") {
-    match <- "zscore"
-  } else if (input$DIF_logistic_summary_matching == "score") {
-    match <- "score"
-  }
+  matching_val <- input$DIF_logistic_summary_matching
+  purify_on <- isTRUE(input$DIF_logistic_summary_purification)
 
-  fit <- tryCatch(
-    ShinyItemAnalysis:::.difLogistic_edited(
-      Data = data, group = group, match = match, focal.name = 1,
-      type = input$DIF_logistic_summary_type,
-      p.adjust.method = input$DIF_logistic_summary_correction,
-      purify = input$DIF_logistic_summary_purification,
-      puriadjType = input$DIF_logistic_summary_combination,
-      all.cov = TRUE
-    ),
-    error = function(e) e
-  )
+  if (matching_val == "theta" && purify_on) {
+    # Custom purification loop that refits IRT each iteration.
+    itemtype <- input$IRT_binary_summary_model %||% "2PL"
+    method   <- if (isTRUE(input$IRT_binary_use_wle)) "WLE" else "EAP"
+    ncycles  <- input$ncycles
+    tol      <- input$tol
+
+    fit <- tryCatch(
+      difLogistic_theta_puri(
+        Data = data, group = group, focal.name = 1,
+        type = input$DIF_logistic_summary_type,
+        p.adjust.method = input$DIF_logistic_summary_correction,
+        fit_irt_fn = function(retained_idx) {
+          .fit_binary_theta(data, retained_idx, itemtype, method,
+                            ncycles, tol)
+        }
+      ),
+      error = function(e) e
+    )
+  } else {
+    match <- .resolve_logistic_match("DIF_logistic_summary_matching", data)
+
+    fit <- tryCatch(
+      ShinyItemAnalysisPoly:::.difLogistic_edited(
+        Data = data, group = group, match = match, focal.name = 1,
+        type = input$DIF_logistic_summary_type,
+        p.adjust.method = input$DIF_logistic_summary_correction,
+        purify = if (matching_val == "theta") FALSE else purify_on,
+        puriadjType = input$DIF_logistic_summary_combination,
+        all.cov = TRUE
+      ),
+      error = function(e) e
+    )
+  }
 
   validate(
     need(
@@ -1612,6 +1902,8 @@ DIF_logistic_summary_matching_text <- reactive({
     "Z_p"
   } else if (input$DIF_logistic_summary_matching == "score") {
     "X_p"
+  } else if (input$DIF_logistic_summary_matching == "theta") {
+    "\\theta_p"
   }
   txt1
 })
@@ -1710,7 +2002,7 @@ DIF_logistic_summary_coef <- reactive({
       )
       vcov_tmp[nams, nams] <- list_vcov[[i]]
 
-      ShinyItemAnalysis:::delta_ses(
+      ShinyItemAnalysisPoly:::delta_ses(
         list(~x2, ~ -x1 / x2, ~x4, ~ (x1 * x4 - x2 * x3) / (x2 * (x2 + x4))),
         mean = tab_coef[i, ],
         cov = vcov_tmp
@@ -1793,11 +2085,15 @@ DIF_logistic_summary_table_note <- reactive({
   fit <- DIF_logistic_model()
   thr <- DIF_logistic_model()$thr
 
-  res$matching <- paste("Observed score:", switch(fit$match,
-    "score" = "total score",
-    "zscore" = "standardized total score",
-    "matching variable" = "uploaded"
-  ))
+  res$matching <- paste("Matching criterion:", if (input$DIF_logistic_summary_matching == "theta") {
+    "IRT \u03B8"
+  } else {
+    switch(fit$match,
+      "score" = "total score",
+      "zscore" = "standardized total score",
+      "uploaded"
+    )
+  })
   res$type <- paste("DIF type tested:", switch(fit$type,
     "both" = "any DIF ",
     "udif" = "uniform DIF ",
@@ -1950,15 +2246,7 @@ DIF_logistic_items_plot <- reactive({
   data <- data.frame(binary())
   item <- input$DIF_logistic_items
 
-  if (input$DIF_logistic_items_matching == "uploaded") {
-    match <- unlist(DIFmatching())
-  } else if (input$DIF_logistic_items_matching == "zuploaded") {
-    match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
-  } else if (input$DIF_logistic_items_matching == "zscore") {
-    match <- "zscore"
-  } else if (input$DIF_logistic_items_matching == "score") {
-    match <- "score"
-  }
+  match <- .resolve_logistic_match("DIF_logistic_items_matching", data)
 
   fit <- DIF_logistic_model()
 
@@ -1996,6 +2284,8 @@ output$DIF_logistic_items_plot <- renderPlotly({
     match <- "Z-score"
   } else if (input$DIF_logistic_items_matching == "score") {
     match <- "Score"
+  } else if (input$DIF_logistic_items_matching == "theta") {
+    match <- "IRT \u03B8"
   }
 
   for (i in 1:length(p$x$data)) {
@@ -2070,7 +2360,7 @@ report_DIF_logistic_model <- reactive({
     correction_report <- input$correction_method_log_report
     purify_report <- input$puri_LR_report
 
-    fit <- ShinyItemAnalysis:::.difLogistic_edited(
+    fit <- ShinyItemAnalysisPoly:::.difLogistic_edited(
       Data = data, group = group, focal.name = 1,
       type = type_report,
       p.adjust.method = correction_report,
@@ -2298,7 +2588,10 @@ observe({
         session,
         paste0(i),
         choices = c(
+          "Total score" = "score",
           "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta",
+          "Uploaded" = "uploaded",
           "Standardized uploaded" = "zuploaded"
         ),
         selected = "zscore"
@@ -2310,7 +2603,9 @@ observe({
         session,
         paste0(i),
         choices = c(
-          "Standardized total score" = "zscore"
+          "Total score" = "score",
+          "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta"
         ),
         selected = "zscore"
       )
@@ -2436,24 +2731,47 @@ DIF_NLR_method <- reactive({
   purify <- input$DIF_NLR_summary_purification
   est_method <- input$DIF_NLR_summary_method
 
-  # if (input$DIF_NLR_summary_matching == "zscore") {
-  #   match <- z_score()
-  # } else
-  if (input$DIF_NLR_summary_matching == "zuploaded") {
-    match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
-  } else {
-    match <- input$DIF_NLR_summary_matching
-  }
+  matching_val <- input$DIF_NLR_summary_matching
 
-  fit <- tryCatch(
-    difNLR(
-      Data = data, group = group, focal.name = 1, match = match,
-      model = model, type = type,
-      p.adjust.method = adj.method, purify = purify,
-      test = "LR", method = est_method
-    ),
-    error = function(e) e
-  )
+  if (matching_val == "theta" && isTRUE(purify)) {
+    itemtype <- input$IRT_binary_summary_model %||% "2PL"
+    irt_method <- if (isTRUE(input$IRT_binary_use_wle)) "WLE" else "EAP"
+    ncycles  <- input$ncycles
+    tol      <- input$tol
+
+    fit <- tryCatch(
+      difNLR_theta_puri(
+        Data = data, group = group, focal.name = 1,
+        model = model, type = type,
+        p.adjust.method = adj.method, method = est_method,
+        fit_irt_fn = function(retained_idx) {
+          .fit_binary_theta(data, retained_idx, itemtype, irt_method,
+                            ncycles, tol)
+        }
+      ),
+      error = function(e) e
+    )
+  } else {
+    if (matching_val == "uploaded") {
+      match <- unlist(DIFmatching())
+    } else if (matching_val == "zuploaded") {
+      match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
+    } else if (matching_val == "theta") {
+      match <- as.vector(IRT_binary_fscores_raw()[, 1])
+    } else {
+      match <- matching_val
+    }
+
+    fit <- tryCatch(
+      difNLR(
+        Data = data, group = group, focal.name = 1, match = match,
+        model = model, type = type,
+        p.adjust.method = adj.method, purify = if (matching_val == "theta") FALSE else purify,
+        test = "LR", method = est_method
+      ),
+      error = function(e) e
+    )
+  }
 
   validate(
     need(
@@ -2480,6 +2798,7 @@ DIF_NLR_method <- reactive({
 # ** Equation ####
 output$DIF_NLR_summary_equation <- renderUI({
   model <- input$DIF_NLR_summary_model
+  match_sym <- if (input$DIF_NLR_summary_matching == "theta") "\\theta_p" else "Z_p"
 
   if (model == "Rasch") {
     txta <- ""
@@ -2493,7 +2812,7 @@ output$DIF_NLR_summary_equation <- renderUI({
 
   txtb <- "b_{iG_p}"
 
-  txt2 <- paste0(txta, "\\left(Z_p - ", txtb, "\\right)")
+  txt2 <- paste0(txta, "\\left(", match_sym, " - ", txtb, "\\right)")
   txt2 <- paste0("e^{", txt2, "}")
   txt2 <- paste0("\\frac{", txt2, "}{1 + ", txt2, "}")
 
@@ -2532,7 +2851,7 @@ output$DIF_NLR_summary_equation <- renderUI({
   }
 
   txt1 <- paste0(
-    "\\mathrm{P}\\left(Y_{pi} = 1 | Z_p, G_p\\right) = "
+    "\\mathrm{P}\\left(Y_{pi} = 1 | ", match_sym, ", G_p\\right) = "
   )
 
   txt <- paste0("$$", txt1, txt3, txt2, "$$")
@@ -2669,11 +2988,15 @@ DIF_NLR_summary_table_note <- reactive({
     "4PL" = "4PL model"
   ))
 
-  res$dmv <- paste("Observed score:", switch(as.character(model$match[1]), # ensures number is recognize as unnamed element
-    "score" = "total score",
-    "zscore" = "standardized total score",
-    "uploaded"
-  ))
+  res$dmv <- paste("Matching criterion:", if (input$DIF_NLR_summary_matching == "theta") {
+    "IRT \u03B8"
+  } else {
+    switch(as.character(model$match[1]),
+      "score" = "total score",
+      "zscore" = "standardized total score",
+      "uploaded"
+    )
+  })
 
   res$type <-
     paste0(
@@ -2880,6 +3203,7 @@ output$DIF_NLR_items_plot_download <- downloadHandler(
 # ** Equation ####
 output$DIF_NLR_items_equation <- renderUI({
   model <- input$DIF_NLR_items_model
+  match_sym <- if (input$DIF_NLR_items_matching == "theta") "\\theta_p" else "Z_p"
 
   if (model == "Rasch") {
     txta <- ""
@@ -2893,7 +3217,7 @@ output$DIF_NLR_items_equation <- renderUI({
 
   txtb <- "b_{iG_p}"
 
-  txt2 <- paste0(txta, "\\left(Z_p - ", txtb, "\\right)")
+  txt2 <- paste0(txta, "\\left(", match_sym, " - ", txtb, "\\right)")
   txt2 <- paste0("e^{", txt2, "}")
   txt2 <- paste0("\\frac{", txt2, "}{1 + ", txt2, "}")
 
@@ -2932,7 +3256,7 @@ output$DIF_NLR_items_equation <- renderUI({
   }
 
   txt1 <- paste0(
-    "\\mathrm{P}\\left(Y_{pi} = 1 | Z_p, G_p\\right) = "
+    "\\mathrm{P}\\left(Y_{pi} = 1 | ", match_sym, ", G_p\\right) = "
   )
 
   txt <- paste0("$$", txt1, txt3, txt2, "$$")
@@ -3068,19 +3392,19 @@ DIF_Lord_method <- reactive({
 
   fit <- tryCatch(
     switch(input$DIF_Lord_summary_model,
-      "1PL" = ShinyItemAnalysis:::.difLord_edited(
+      "1PL" = ShinyItemAnalysisPoly:::.difLord_edited(
         Data = data, group = group, focal.name = 1,
         model = "1PL",
         p.adjust.method = input$DIF_Lord_summary_correction,
         purify = input$DIF_Lord_summary_purification
       ),
-      "2PL" = ShinyItemAnalysis:::.difLord_edited(
+      "2PL" = ShinyItemAnalysisPoly:::.difLord_edited(
         Data = data, group = group, focal.name = 1,
         model = "2PL",
         p.adjust.method = input$DIF_Lord_summary_correction,
         purify = input$DIF_Lord_summary_purification
       ),
-      "3PL" = ShinyItemAnalysis:::.difLord_edited(
+      "3PL" = ShinyItemAnalysisPoly:::.difLord_edited(
         Data = data, group = group, focal.name = 1,
         model = "3PL", c = guess,
         p.adjust.method = input$DIF_Lord_summary_correction,
@@ -3797,19 +4121,19 @@ DIF_Raju_method <- reactive({
 
   fit <- tryCatch(
     switch(input$DIF_Raju_summary_model,
-      "1PL" = ShinyItemAnalysis:::.difRaju_edited(
+      "1PL" = ShinyItemAnalysisPoly:::.difRaju_edited(
         Data = data, group = group, focal.name = 1,
         model = "1PL",
         p.adjust.method = input$DIF_Raju_summary_correction,
         purify = input$DIF_Raju_summary_purification
       ),
-      "2PL" = ShinyItemAnalysis:::.difRaju_edited(
+      "2PL" = ShinyItemAnalysisPoly:::.difRaju_edited(
         Data = data, group = group, focal.name = 1,
         model = "2PL",
         p.adjust.method = input$DIF_Raju_summary_correction,
         purify = input$DIF_Raju_summary_purification
       ),
-      "3PL" = ShinyItemAnalysis:::.difRaju_edited(
+      "3PL" = ShinyItemAnalysisPoly:::.difRaju_edited(
         Data = data, group = group, focal.name = 1,
         model = "3PL", c = guess,
         p.adjust.method = input$DIF_Raju_summary_correction,
@@ -4563,7 +4887,7 @@ output$DIF_MC_same_correction <- renderPrint({
 DIF_MC_same_matching <- reactive({
   if (input$DIF_logistic_summary_matching %in% c("uploaded", "zuploaded") |
     input$DIF_NLR_summary_matching %in% c("uploaded", "zuploaded")) {
-    HTML("Warning: Observed score should be unified across the methods!")
+    HTML("Warning: Matching criterion should be unified across the methods!")
   }
 })
 
@@ -4715,6 +5039,7 @@ observe({
         choices = c(
           "Total score" = "score",
           "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta",
           "Uploaded" = "uploaded",
           "Standardized uploaded" = "zuploaded"
         ),
@@ -4728,7 +5053,8 @@ observe({
         paste0(i),
         choices = c(
           "Total score" = "score",
-          "Standardized total score" = "zscore"
+          "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta"
         ),
         selected = "zscore"
       )
@@ -4916,21 +5242,31 @@ DIF_cumulative_method <- reactive({
   puri <- input$DIF_cumulative_summary_purification
   corr <- input$DIF_cumulative_summary_correction
 
-  if (input$DIF_cumulative_summary_matching == "uploaded") {
-    match <- unlist(DIFmatching())
-  } else if (input$DIF_cumulative_summary_matching == "zuploaded") {
-    match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
-  } else if (input$DIF_cumulative_summary_matching == "zscore") {
-    match <- "zscore"
-  } else if (input$DIF_cumulative_summary_matching == "score") {
-    match <- "score"
-  }
+  matching_val <- input$DIF_cumulative_summary_matching
 
-  fit <- difNLR::difORD(
-    Data = data, group = group,
-    focal.name = 1, model = "cumulative", match = match,
-    type = type, purify = puri, p.adjust.method = corr
-  )
+  if (matching_val == "theta" && isTRUE(puri)) {
+    fit <- .difORD_theta_puri(
+      Data = data, group = group, focal.name = 1,
+      model = "cumulative", type = type, p.adjust.method = corr,
+      fit_irt_fn = .poly_theta_fit_fn(data)
+    )
+  } else {
+    if (matching_val == "uploaded") {
+      match <- unlist(DIFmatching())
+    } else if (matching_val == "zuploaded") {
+      match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
+    } else if (matching_val == "theta") {
+      match <- as.vector(IRT_poly_fscores_raw()[, 1])
+    } else {
+      match <- matching_val  # "score" or "zscore"
+    }
+    fit <- difNLR::difORD(
+      Data = data, group = group,
+      focal.name = 1, model = "cumulative", match = match,
+      type = type, purify = if (matching_val == "theta") FALSE else puri,
+      p.adjust.method = corr
+    )
+  }
   fit
 })
 
@@ -4939,7 +5275,7 @@ DIF_cumulative_method <- reactive({
 
 # ** Equation - cumulative probability ####
 DIF_cumulative_summary_equation_cumulative <- reactive({
-  txt1 <- "Z_p"
+  txt1 <- if (input$DIF_cumulative_summary_matching == "theta") "\\theta_p" else "Z_p"
   txt2 <- if (input$DIF_cumulative_summary_parametrization == "irt") {
     paste0(
       "(a_{i} + a_{i\\text{DIF}} G_p)",
@@ -4948,7 +5284,7 @@ DIF_cumulative_summary_equation_cumulative <- reactive({
   } else {
     paste0("\\beta_{i0k} + \\beta_{i1} ", txt1, " + \\beta_{i2} G_p + \\beta_{i3} ", txt1, ":G_p")
   }
-  txt3 <- "Z_p, G_p"
+  txt3 <- paste0(txt1, ", G_p")
 
   txt <- paste0("$$\\mathrm{P}(Y_{pi} \\geq k|", txt3, ") = \\frac{e^{", txt2, "}}{1 + e^{", txt2, "}}$$")
   txt
@@ -4960,8 +5296,8 @@ output$DIF_cumulative_summary_equation_cumulative <- renderUI({
 
 # ** Equation - category probability ####
 DIF_cumulative_summary_equation_category <- reactive({
-  txt1 <- "Z_p"
-  txt3 <- "Z_p, G_p"
+  txt1 <- if (input$DIF_cumulative_summary_matching == "theta") "\\theta_p" else "Z_p"
+  txt3 <- paste0(txt1, ", G_p")
 
   txt <- paste0("$$\\mathrm{P}(Y_{pi} = k|", txt3, ") = \\mathrm{P}(Y_{pi} \\geq k|", txt3, ") - \\mathrm{P}(Y_{pi} \\geq k + 1|", txt3, ")$$")
   txt
@@ -5123,13 +5459,15 @@ DIF_cumulative_summary_table_note <- reactive({
   fit <- DIF_cumulative_method()
 
   res$matching <- paste(
-    "Observed score:",
-    if (fit$match[1] == "score") {
+    "Matching criterion:",
+    if (input$DIF_cumulative_summary_matching == "theta") {
+      "IRT \u03B8"
+    } else if (fit$match[1] == "score") {
       "total score"
     } else if (fit$match[1] == "zscore") {
       "standardized total score"
     } else {
-      "standardized uploaded"
+      "uploaded"
     }
   )
   res$type <- paste("DIF type tested:", switch(fit$type,
@@ -5427,6 +5765,7 @@ observe({
         choices = c(
           "Total score" = "score",
           "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta",
           "Uploaded" = "uploaded",
           "Standardized uploaded" = "zuploaded"
         ),
@@ -5440,7 +5779,8 @@ observe({
         paste0(i),
         choices = c(
           "Total score" = "score",
-          "Standardized total score" = "zscore"
+          "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta"
         ),
         selected = "zscore"
       )
@@ -5628,21 +5968,31 @@ DIF_adjacent_model <- reactive({
   puri <- input$DIF_adjacent_summary_purification
   corr <- input$DIF_adjacent_summary_correction
 
-  if (input$DIF_adjacent_summary_matching == "uploaded") {
-    match <- unlist(DIFmatching())
-  } else if (input$DIF_adjacent_summary_matching == "zuploaded") {
-    match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
-  } else if (input$DIF_adjacent_summary_matching == "zscore") {
-    match <- "zscore"
-  } else if (input$DIF_adjacent_summary_matching == "score") {
-    match <- "score"
-  }
+  matching_val <- input$DIF_adjacent_summary_matching
 
-  fit <- difNLR::difORD(
-    Data = data, group = group,
-    focal.name = 1, model = "adjacent", match = match,
-    type = type, purify = puri, p.adjust.method = corr
-  )
+  if (matching_val == "theta" && isTRUE(puri)) {
+    fit <- .difORD_theta_puri(
+      Data = data, group = group, focal.name = 1,
+      model = "adjacent", type = type, p.adjust.method = corr,
+      fit_irt_fn = .poly_theta_fit_fn(data)
+    )
+  } else {
+    if (matching_val == "uploaded") {
+      match <- unlist(DIFmatching())
+    } else if (matching_val == "zuploaded") {
+      match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
+    } else if (matching_val == "theta") {
+      match <- as.vector(IRT_poly_fscores_raw()[, 1])
+    } else {
+      match <- matching_val
+    }
+    fit <- difNLR::difORD(
+      Data = data, group = group,
+      focal.name = 1, model = "adjacent", match = match,
+      type = type, purify = if (matching_val == "theta") FALSE else puri,
+      p.adjust.method = corr
+    )
+  }
   fit
 })
 
@@ -5651,7 +6001,7 @@ DIF_adjacent_model <- reactive({
 
 # ** Equation ####
 DIF_adjacent_summary_equation <- reactive({
-  txt1 <- "Z_p"
+  txt1 <- if (input$DIF_adjacent_summary_matching == "theta") "\\theta_p" else "Z_p"
   txt2 <- if (input$DIF_adjacent_summary_parametrization == "irt") {
     paste0(
       "(a_{i} + a_{i\\text{DIF}} G_p)",
@@ -5660,7 +6010,7 @@ DIF_adjacent_summary_equation <- reactive({
   } else {
     paste0("\\beta_{i0l} + \\beta_{i1} ", txt1, " + \\beta_{i2} G_p + \\beta_{i3} ", txt1, ":G_p")
   }
-  txt3 <- "Z_p, G_p"
+  txt3 <- paste0(txt1, ", G_p")
 
   txt <- paste0("$$\\mathrm{P}(Y_{pi} = k|", txt3, ") = \\frac{e^{\\sum_{l = 0}^{k}", txt2, "}}{\\sum_{j = 0}^{K_i}e^{\\sum_{l = 0}^{j}", txt2, "}}$$")
   txt
@@ -5691,7 +6041,10 @@ output$DIF_adjacent_summary_dif_items <- renderPrint({
 DIF_adjacent_summary_stats <- reactive({
   fit <- DIF_adjacent_model()
 
-  pval <- if (fit$p.adjust.method != "none") {
+  padj_is_none <- identical(as.character(fit$p.adjust.method)[1], "none") ||
+    is.null(fit$p.adjust.method)
+
+  pval <- if (!padj_is_none) {
     fit$pval
   } else {
     fit$adj.pval
@@ -5708,7 +6061,7 @@ DIF_adjacent_summary_stats <- reactive({
     `sig. symb.` = pval_symb,
     check.names = FALSE
   )
-  names(out)[names(out) == "pval"] <- if (fit$p.adjust.method != "none") "adj. p-value" else "p-value"
+  names(out)[names(out) == "pval"] <- if (!padj_is_none) "adj. p-value" else "p-value"
 
   out
 })
@@ -5758,13 +6111,15 @@ DIF_adjacent_summary_table_note <- reactive({
   fit <- DIF_adjacent_model()
 
   res$matching <- paste(
-    "Observed score:",
-    if (fit$match[1] == "score") {
+    "Matching criterion:",
+    if (input$DIF_adjacent_summary_matching == "theta") {
+      "IRT \u03B8"
+    } else if (fit$match[1] == "score") {
       "total score"
     } else if (fit$match[1] == "zscore") {
       "standardized total score"
     } else {
-      "standardized uploaded"
+      "uploaded"
     }
   )
   res$type <- paste("DIF type tested:", switch(fit$type,
@@ -5996,6 +6351,7 @@ observe({
         choices = c(
           "Total score" = "score",
           "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta",
           "Uploaded" = "uploaded",
           "Standardized uploaded" = "zuploaded"
         ),
@@ -6009,7 +6365,8 @@ observe({
         paste0(i),
         choices = c(
           "Total score" = "score",
-          "Standardized total score" = "zscore"
+          "Standardized total score" = "zscore",
+          "IRT \u03B8" = "theta"
         ),
         selected = "zscore"
       )
@@ -6182,24 +6539,46 @@ DIF_multinomial_method <- reactive({
   puri <- input$DIF_multinomial_summary_purification
   corr <- input$DIF_multinomial_summary_correction
 
-  if (input$DIF_multinomial_summary_matching == "uploaded") {
-    match <- unlist(DIFmatching())
-  } else if (input$DIF_multinomial_summary_matching == "zuploaded") {
-    match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
-  } else if (input$DIF_multinomial_summary_matching == "zscore") {
-    match <- "zscore"
-  } else if (input$DIF_multinomial_summary_matching == "score") {
-    match <- "score"
-  }
+  matching_val <- input$DIF_multinomial_summary_matching
 
-  fit <- tryCatch(
-    ddfMLR(
-      Data = data, group = group, focal.name = 1, match = match,
-      key = key, p.adjust.method = corr,
-      type = type, purify = puri
-    ),
-    error = function(e) e
-  )
+  if (matching_val == "theta" && isTRUE(puri)) {
+    itemtype <- input$IRT_binary_summary_model %||% "2PL"
+    irt_method <- if (isTRUE(input$IRT_binary_use_wle)) "WLE" else "EAP"
+    ncycles  <- input$ncycles
+    tol      <- input$tol
+    binary_data <- data.frame(binary())
+
+    fit <- tryCatch(
+      .ddfMLR_theta_puri(
+        Data = data, group = group, focal.name = 1,
+        key = key, type = type, p.adjust.method = corr,
+        fit_irt_fn = function(retained_idx) {
+          .fit_binary_theta(binary_data, retained_idx, itemtype, irt_method,
+                            ncycles, tol)
+        }
+      ),
+      error = function(e) e
+    )
+  } else {
+    if (matching_val == "uploaded") {
+      match <- unlist(DIFmatching())
+    } else if (matching_val == "zuploaded") {
+      match <- scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
+    } else if (matching_val == "theta") {
+      match <- as.vector(IRT_binary_fscores_raw()[, 1])
+    } else {
+      match <- matching_val
+    }
+
+    fit <- tryCatch(
+      ddfMLR(
+        Data = data, group = group, focal.name = 1, match = match,
+        key = key, p.adjust.method = corr,
+        type = type, purify = if (matching_val == "theta") FALSE else puri
+      ),
+      error = function(e) e
+    )
+  }
 
   validate(
     need(
@@ -6217,7 +6596,7 @@ DIF_multinomial_method <- reactive({
 
 # ** Equation - correct answer ####
 DIF_multinomial_summary_equation_correct <- reactive({
-  txt1 <- "Z_p"
+  txt1 <- if (input$DIF_multinomial_summary_matching == "theta") "\\theta_p" else "Z_p"
   txt2 <- if (input$DIF_multinomial_summary_parametrization == "irt") {
     paste0(
       "(a_{il} + a_{il\\text{DIF}} G_p)",
@@ -6226,7 +6605,7 @@ DIF_multinomial_summary_equation_correct <- reactive({
   } else {
     paste0("\\beta_{i0l} + \\beta_{i1l} ", txt1, " + \\beta_{i2l} G_p + \\beta_{i3l} ", txt1, ":G_p")
   }
-  txt3 <- "Z_p, G_p"
+  txt3 <- paste0(txt1, ", G_p")
 
   txt <- paste0("$$\\mathrm{P}(Y_{pi} = K_i|", txt3, ") = \\frac{1}{\\sum_{l} e^{", txt2, "}}$$")
   txt
@@ -6238,7 +6617,7 @@ output$DIF_multinomial_summary_equation_correct <- renderUI({
 
 # ** Equation - distractor ####
 DIF_multinomial_summary_equation_distractor <- reactive({
-  txt1 <- "Z_p"
+  txt1 <- if (input$DIF_multinomial_summary_matching == "theta") "\\theta_p" else "Z_p"
   txt2 <- if (input$DIF_multinomial_summary_parametrization == "irt") {
     paste0(
       "(a_{ik} + a_{ik\\text{DIF}} G_p)",
@@ -6255,7 +6634,7 @@ DIF_multinomial_summary_equation_distractor <- reactive({
   } else {
     paste0("\\beta_{i0l} + \\beta_{i1l} ", txt1, " + \\beta_{i2l} G_p + \\beta_{i3l} ", txt1, ":G_p")
   }
-  txt4 <- "Z_p, G_p"
+  txt4 <- paste0(txt1, ", G_p")
 
   txt <- paste0("$$\\mathrm{P}(Y_{pi} = k|", txt4, ") = \\frac{e^{", txt2, "}}{\\sum_{l} e^{", txt3, "}}$$")
   txt
@@ -6338,12 +6717,14 @@ DIF_multinomial_summary_table_note <- reactive({
 
   res$matching <- paste(
     "DDF matching variable:",
-    if (fit$match[1] == "score") {
+    if (input$DIF_multinomial_summary_matching == "theta") {
+      "IRT \u03B8"
+    } else if (fit$match[1] == "score") {
       "total score"
     } else if (fit$match[1] == "zscore") {
       "standardized total score"
     } else {
-      "standardized uploaded"
+      "uploaded"
     }
   )
   res$type <- paste("DDF type tested:", switch(fit$type,
@@ -6673,7 +7054,7 @@ output$DIF_multinomial_items_equation <- renderUI({
   item <- input$DIF_multinomial_items
   key <- key()
 
-  txt1 <- "Z_p"
+  txt1 <- if (input$DIF_multinomial_items_matching == "theta") "\\theta_p" else "Z_p"
   txt2 <- if (input$DIF_multinomial_items_parametrization == "irt") {
     paste0(
       "(a_{ik} + a_{ik\\text{DIF}} G_p)",
@@ -6690,7 +7071,7 @@ output$DIF_multinomial_items_equation <- renderUI({
   } else {
     paste0("\\beta_{i0l} + \\beta_{i1l} ", txt1, " + \\beta_{i2l} G_p + \\beta_{i3l} ", txt1, ":G_p")
   }
-  txt4 <- "Z_p, G_p"
+  txt4 <- paste0(txt1, ", G_p")
 
 
   cor_option <- key[item]
