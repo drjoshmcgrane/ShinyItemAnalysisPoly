@@ -8,7 +8,7 @@ Extended polytomous IRT and DIF analysis for [ShinyItemAnalysis](https://github.
 
 ## About
 
-ShinyItemAnalysisPoly is a fork of [ShinyItemAnalysis](https://github.com/patriciamar/ShinyItemAnalysis) (v1.5.5) by Martinkova, Hladka, and Netik. It extends the interactive Shiny application with polytomous IRT models, IRT-based DIF matching, and improved missing data handling. Maintained by [Josh McGrane](https://github.com/drjoshmcgrane) for teaching and research at the University of Western Australia.
+ShinyItemAnalysisPoly is a fork of [ShinyItemAnalysis](https://github.com/patriciamar/ShinyItemAnalysis) (v1.5.5) by Martinkova, Hladka, and Netik. It extends the interactive Shiny application with polytomous IRT models, IRT-based DIF matching, and improved missing data handling. Maintained by [Josh McGrane](https://github.com/drjoshmcgrane) for teaching and research.
 
 All original ShinyItemAnalysis functionality is preserved.
 
