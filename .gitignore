@@ -4,4 +4,17 @@
 .Ruserdata
 .DS_Store
 inst/ShinyItemAnalysis/www/Thumbs.db
-docs
+
+# Claude Code working directory
+.claude/
+
+# Planning and spec artifacts
+docs/superpowers/
+
+# pkgdown site (generated)
+docs/
+
+# Ad-hoc data and output files
+*.pdf
+*.csv
+!inst/**/*.csv

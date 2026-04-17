@@ -1,8 +1,8 @@
 ---
 name: "Bug report"
-about: Report an error or unexpected behavior you saw while using this package or app
+about: Report an error or unexpected behavior in ShinyItemAnalysisPoly
 title: ''
-labels: ''
+labels: 'bug'
 assignees: ''
 ---
 
@@ -10,7 +10,7 @@ assignees: ''
 
 Please describe your problem and what behavior or output you expect.
 
-Add minimal example to help us reproduce your issue. For problems with the
+Add a minimal example to help reproduce your issue. For problems with the
 interactive application, please attach a minimal sample of your data that still
 causes a trouble, and describe the exact steps needed to reproduce the behavior.
 
@@ -28,6 +28,6 @@ When filing a _bug report_, please check the boxes below to confirm that you hav
 
 - [ ] pasted the output from `sessionInfo()` in your issue?
 
-- [ ] installed and tested your bug with the local development version of the package using `remotes::install_github("patriciamar/ShinyItemAnalysis")`
-      (run the app with `ShinyItemAnalysis::run_app()`)?
+- [ ] installed and tested your bug with the latest development version using `remotes::install_github("drjoshmcgrane/ShinyItemAnalysisPoly")`?
 
+- [ ] confirmed whether the bug also occurs in upstream [ShinyItemAnalysis](https://github.com/patriciamar/ShinyItemAnalysis)? If so, please report it there instead.
