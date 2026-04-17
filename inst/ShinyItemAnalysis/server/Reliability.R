@@ -233,7 +233,7 @@ reliability_splithalf_estimate <- reactive({
     ts1 <- apply(df1, 1, sum)
     ts2 <- apply(df2, 1, sum)
 
-    cor.y <- cor(ts1, ts2)
+    cor.y <- cor(ts1, ts2, use = "complete.obs")
     z.r <- 0.5 * log((1 + cor.y) / (1 - cor.y))
     n <- length(ts1)
     z.low <- z.r - 1.96 * sqrt(1 / (n - 3))

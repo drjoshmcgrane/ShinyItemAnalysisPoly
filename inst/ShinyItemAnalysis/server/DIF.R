@@ -1070,8 +1070,7 @@ DIF_SIBTEST_model <- reactive({
   group <- unlist(group())
   data <- data.frame(binary())
 
-  data_group <- bind_cols(data, group = group)
-  group_counts <- data_group |>
+  group_counts <- tibble(group = group) |>
     drop_na() |>
     count(group)
   sc0 <- group_counts |>
@@ -1082,8 +1081,8 @@ DIF_SIBTEST_model <- reactive({
     pull(n)
 
   validate(
-    need(sc0 > 1L, "Not enough complete observations in the reference group."),
-    need(sc1 > 1L, "Not enough complete observations in the focal group."),
+    need(length(sc0) > 0 && sc0 > 1L, "Not enough observations in the reference group."),
+    need(length(sc1) > 0 && sc1 > 1L, "Not enough observations in the focal group."),
     errorClass = "validation-error"
   )
 
@@ -5222,8 +5221,7 @@ DIF_cumulative_method <- reactive({
   data <- ordinal()
   group <- unlist(group(), use.names = FALSE)
 
-  data_group <- bind_cols(data, group = group)
-  group_counts <- data_group |>
+  group_counts <- tibble(group = group) |>
     drop_na() |>
     count(group)
   sc0 <- group_counts |>
@@ -5234,8 +5232,8 @@ DIF_cumulative_method <- reactive({
     pull(n)
 
   validate(
-    need(sc0 > 1L, "Not enough complete observations in the reference group."),
-    need(sc1 > 1L, "Not enough complete observations in the focal group.")
+    need(length(sc0) > 0 && sc0 > 1L, "Not enough observations in the reference group."),
+    need(length(sc1) > 0 && sc1 > 1L, "Not enough observations in the focal group.")
   )
 
   type <- input$DIF_cumulative_summary_type
@@ -5948,8 +5946,7 @@ DIF_adjacent_model <- reactive({
   data <- ordinal()
   group <- unlist(group(), use.names = FALSE)
 
-  data_group <- bind_cols(data, group = group)
-  group_counts <- data_group |>
+  group_counts <- tibble(group = group) |>
     drop_na() |>
     count(group)
   sc0 <- group_counts |>
@@ -5960,8 +5957,8 @@ DIF_adjacent_model <- reactive({
     pull(n)
 
   validate(
-    need(sc0 > 1L, "Not enough complete observations in the reference group."),
-    need(sc1 > 1L, "Not enough complete observations in the focal group.")
+    need(length(sc0) > 0 && sc0 > 1L, "Not enough observations in the reference group."),
+    need(length(sc1) > 0 && sc1 > 1L, "Not enough observations in the focal group.")
   )
 
   type <- input$DIF_adjacent_summary_type

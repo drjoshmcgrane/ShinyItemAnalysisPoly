@@ -231,13 +231,13 @@ uiData <- tabPanel(
                     bsPopover(
                       id = "data_csvdata_replace_missing_info",
                       title = "Info",
-                      content = "Should missing values be removed? If \"checked\", every missing value (blank string, empty cell, or NA) is going to be replaced by 0.",
+                      content = "If checked, every missing value (blank string, empty cell, or NA) is replaced by 0. This is appropriate for achievement tests where missing responses should be scored as incorrect. For IRT and other model-based analyses, leaving this unchecked allows methods to handle missing data natively (e.g., via full-information maximum likelihood).",
                       placement = "right",
                       trigger = "hover",
                       options = list(container = "body")
                     )
                   ),
-                  value = TRUE
+                  value = FALSE
                 ) # ,
                 # conditionalPanel(
                 #   condition = "input.data_csvdata_replace_missing",

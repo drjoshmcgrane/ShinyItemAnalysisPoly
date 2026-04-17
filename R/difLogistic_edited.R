@@ -42,32 +42,48 @@
     } else {
       Group <- gr
     }
+    item_names <- colnames(DATA)
+
     if (length(match) == dim(DATA)[1]) {
-      df <- data.frame(DATA, Group, match, check.names = F)
-    } else {
-      df <- data.frame(DATA, Group, check.names = F)
-    }
-    if (any(is.na(DATA))) {
-      warning("'Data' contains missing values. Observations with missing values are discarded.",
-        call. = FALSE
-      )
-    }
-    if (any(is.na(Group))) {
-      warning("'group' contains missing values. Observations with missing values are discarded.",
-        call. = FALSE
-      )
-    }
-    df <- df[complete.cases(df), ]
-    Group <- df[, "Group"]
-    DATA <- as.data.frame(df[, !(colnames(df) %in% c("Group", "match"))])
-    colnames(DATA) <- colnames(df)[!(colnames(df) %in% c("Group", "match"))]
-    if (length(match) > 1) {
+      # External matching variable (e.g., IRT theta): only require non-NA
+      # on Group and match. Item-level missingness is handled per-item by glm.
+      if (any(is.na(Group))) {
+        warning("'group' contains missing values. Observations with missing values are discarded.",
+          call. = FALSE
+        )
+      }
       if (any(is.na(match))) {
         warning("'match' contains missing values. Observations with missing values are discarded.",
           call. = FALSE
         )
       }
-      match <- df[, "match"]
+      if (any(is.na(DATA))) {
+        warning("'Data' contains missing values. Per-item missing values are handled during model fitting.",
+          call. = FALSE
+        )
+      }
+      keep <- complete.cases(data.frame(Group, match))
+      DATA <- as.data.frame(DATA[keep, , drop = FALSE])
+      colnames(DATA) <- item_names
+      Group <- Group[keep]
+      match <- match[keep]
+    } else {
+      # Internal matching (score/zscore): listwise deletion as before
+      df <- data.frame(DATA, Group, check.names = F)
+      if (any(is.na(DATA))) {
+        warning("'Data' contains missing values. Observations with missing values are discarded.",
+          call. = FALSE
+        )
+      }
+      if (any(is.na(Group))) {
+        warning("'group' contains missing values. Observations with missing values are discarded.",
+          call. = FALSE
+        )
+      }
+      df <- df[complete.cases(df), ]
+      Group <- df[, "Group"]
+      DATA <- as.data.frame(df[, !(colnames(df) %in% c("Group"))])
+      colnames(DATA) <- item_names
     }
 
     Q <- switch(type,
