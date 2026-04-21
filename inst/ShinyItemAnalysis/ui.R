@@ -131,7 +131,7 @@ ui <- tagList(
       HTML('<div style = "clear: both; height: 50px;"></div>
            <div class = "panel-footer", style = "opacity: 1.00; z-index: 1000;">
               <p style = "margin:8px 0 0 0;">
-                <div class = "footer-title"> <img src = "sia_logo.svg" style="width: 57px; margin-right: 10px;"> ShinyItemAnalysis </div>
+                <div class = "footer-title"> <img src = "sia_logo.svg" style="width: 57px; margin-right: 10px;"> ShinyItemAnalysis<sup style="color: #ffd54f; font-size: 55%; margin-left: 2px; font-weight: 600;">Poly</sup> </div>
                 <div class = "footer-subtitle"> Test and item analysis via Shiny | Version 1.5.5 </div>
                 <span style = "float:right">
                   <a href = "https://shinyitemanalysis.org/" id = "tooltipweb" target="_blank"> <img src = "footer_web_icon.png", class = "footer-icons"> </a>
