@@ -119,7 +119,7 @@ ui <- tagList(
   tags$head(insert_ga_tag()),
   navbarPage(
     title = HTML('<div style="margin-top: -10px;">
-                    <div class="header-title"><img src="sia_logo_trans.svg"> ShinyItemAnalysis<sup style="color: #ffd54f; font-size: 55%; margin-left: 2px; font-weight: 600;">poly</sup></div>
+                    <div class="header-title"><img src="sia_logo_trans.svg"> ShinyItemAnalysis<sup style="color: #ffd54f; font-size: 55%; margin-left: 2px; font-weight: 600;">Poly</sup></div>
                     <div class="header-subtitle"> Test and item analysis</div>
                  </div>'),
     id = "navbar",

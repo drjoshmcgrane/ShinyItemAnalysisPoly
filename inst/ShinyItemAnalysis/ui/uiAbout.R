@@ -6,9 +6,9 @@ uiAbout <- tabPanel("",
   # Description ####
   #------------------------------------------------------------------------------------#
   h3("Welcome"),
-  p("Welcome to ShinyItemAnalysis", HTML('<sup style="color:#d98b00;">poly</sup>'), "!"),
+  p("Welcome to ShinyItemAnalysis", HTML('<sup style="color:#d98b00;">Poly</sup>'), "!"),
   p(
-    strong("ShinyItemAnalysis"), HTML('<sup style="color:#d98b00;">poly</sup>'),
+    strong("ShinyItemAnalysis"), HTML('<sup style="color:#d98b00;">Poly</sup>'),
     "is a fork of",
     a("ShinyItemAnalysis", href = "https://github.com/patriciamar/ShinyItemAnalysis", target = "_blank"),
     "(Martinkova, Hladka, & Netik) that extends the interactive application with polytomous IRT models,

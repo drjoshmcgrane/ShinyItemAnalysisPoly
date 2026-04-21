@@ -302,6 +302,103 @@ report_IRT_binary_ability_table <- reactive({
 })
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * POLYTOMOUS IRT (reports) ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Report-side poly reactives thin-wrap existing poly IRT reactives so the
+# download handler can pass a uniform set of params irrespective of data type.
+
+report_IRT_poly_model_name <- reactive({
+  input$IRT_poly_model %||% "GRM"
+})
+
+report_IRT_poly_equation <- reactive({
+  switch(report_IRT_poly_model_name(),
+    "NRM"  = "$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{a_{ik}\\theta_p + c_{ik}}}{\\sum_{l=0}^{K_i} e^{a_{il}\\theta_p + c_{il}}}$$",
+    "GRM"  = "$$P^*(Y_{pi} \\geq k | \\theta_p) = \\frac{e^{a_i(\\theta_p - b_{ik})}}{1 + e^{a_i(\\theta_p - b_{ik})}}$$",
+    "RSM"  = "$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{\\sum_{j=0}^{k}(\\theta_p - b_i - \\tau_j)}}{\\sum_{l=0}^{K} e^{\\sum_{j=0}^{l}(\\theta_p - b_i - \\tau_j)}}$$",
+    "PCM"  = "$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{\\sum_{j=0}^{k}(\\theta_p - \\delta_{ij})}}{\\sum_{l=0}^{K} e^{\\sum_{j=0}^{l}(\\theta_p - \\delta_{ij})}}$$",
+    "GPCM" = "$$P(Y_{pi} = k | \\theta_p) = \\frac{e^{\\sum_{j=0}^{k} a_i(\\theta_p - \\delta_{ij})}}{\\sum_{l=0}^{K} e^{\\sum_{j=0}^{l} a_i(\\theta_p - \\delta_{ij})}}$$"
+  )
+})
+
+# Wright map only defined for RSM/PCM/GPCM in the poly tab. For GRM/NRM we
+# fall back to an empty placeholder so the Rmd can detect and skip.
+report_IRT_poly_wrightmap <- reactive({
+  if (!(report_IRT_poly_model_name() %in% c("RSM", "PCM", "GPCM"))) {
+    return(NULL)
+  }
+  tryCatch(IRT_poly_wrightmap_plots(), error = function(e) NULL)
+})
+
+report_IRT_poly_icc <- reactive({
+  tryCatch(IRT_poly_summary_expected_reactive(), error = function(e) "")
+})
+
+report_IRT_poly_iic <- reactive({
+  tryCatch(IRT_poly_summary_iic_reactive(), error = function(e) "")
+})
+
+report_IRT_poly_tic <- reactive({
+  tryCatch(IRT_poly_summary_tic_reactive(), error = function(e) "")
+})
+
+report_IRT_poly_coef <- reactive({
+  tryCatch(IRT_poly_summary_coef_reactive(), error = function(e) NULL)
+})
+
+report_IRT_poly_ability_plot <- reactive({
+  tryCatch(IRT_poly_ability_plot_reactive(), error = function(e) "")
+})
+
+report_IRT_poly_ability_table <- reactive({
+  tryCatch({
+    fscore <- as.vector(IRT_poly_fscores_raw()[, 1])
+    score  <- as.vector(total_score())
+    zscore <- as.vector(z_score())
+    tab <- data.frame(score, zscore, fscore)
+    data.frame(
+      Min      = sapply(tab, min,    na.rm = TRUE),
+      Max      = sapply(tab, max,    na.rm = TRUE),
+      Mean     = sapply(tab, mean,   na.rm = TRUE),
+      Median   = sapply(tab, median, na.rm = TRUE),
+      SD       = sapply(tab, sd,     na.rm = TRUE),
+      Skewness = sapply(tab, ShinyItemAnalysisPoly:::skewness),
+      Kurtosis = sapply(tab, ShinyItemAnalysisPoly:::kurtosis),
+      row.names = c("Total Scores", "Z-Scores", "F-scores")
+    )
+  }, error = function(e) NULL)
+})
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# * POLYTOMOUS DIF (reports) ####
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Cumulative difORD — reuses the live DIF_cumulative_method() output driven by
+# current DIF tab inputs. For MVP parity in reports, we inherit those settings.
+report_DIF_ord_fit <- reactive({
+  tryCatch(DIF_cumulative_method(), error = function(e) NULL)
+})
+
+report_DIF_ord_print <- reactive({
+  fit <- report_DIF_ord_fit()
+  if (is.null(fit) || inherits(fit, "error")) return("DIF (cumulative logit) could not be fit.")
+  out <- utils::capture.output(print(fit))
+  paste(out, collapse = "\n")
+})
+
+report_DIF_ord_plot <- reactive({
+  fit <- report_DIF_ord_fit()
+  if (is.null(fit)) return("")
+  flagged <- fit$DIFitems
+  if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
+  tryCatch(
+    plot(fit, item = flagged[1], plot.type = "cumulative"),
+    error = function(e) ""
+  )
+})
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * DIF ####
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -397,17 +494,17 @@ observeEvent(input$generate, {
       # regression
       multiplot = report_regression_multinomial_plot(),
       incProgress(0.05),
-      # irt
-      irt_wrightmap = report_IRT_binary_wrightmap(),
-      irt_equation = report_IRT_binary_equation(),
-      irt_model = input$report_IRT_binary_model,
+      # irt (poly-aware)
+      irt_wrightmap = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_wrightmap() else report_IRT_binary_wrightmap(),
+      irt_equation = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_equation() else report_IRT_binary_equation(),
+      irt_model = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_model_name() else input$report_IRT_binary_model,
       irt_parametrization = input$IRT_binary_summary_parametrization,
-      irt_icc = report_IRT_binary_icc(),
-      irt_iic = report_IRT_binary_iic(),
-      irt_tic = report_IRT_binary_tic(),
-      irt_coef = report_IRT_binary_coef(),
-      irt_ability_plot = report_IRT_binary_ability_plot(),
-      irt_ability_table = report_IRT_binary_ability_table(),
+      irt_icc = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_icc() else report_IRT_binary_icc(),
+      irt_iic = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_iic() else report_IRT_binary_iic(),
+      irt_tic = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_tic() else report_IRT_binary_tic(),
+      irt_coef = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_coef() else report_IRT_binary_coef(),
+      irt_ability_plot = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_ability_plot() else report_IRT_binary_ability_plot(),
+      irt_ability_table = if (isTRUE(data_type() %in% c("ordinal", "nominal"))) report_IRT_poly_ability_table() else report_IRT_binary_ability_table(),
       incProgress(0.25),
       # DIF
       ### presence of group vector
@@ -520,10 +617,16 @@ output$report <- downloadHandler(
     paste0("report.", input$report_format)
   }),
   content = function(file) {
-    reportPath <- file.path(getwd(), paste0("report", input$report_format, ".Rmd"))
+    is_poly <- isTRUE(data_type() %in% c("ordinal", "nominal"))
+    reportPath <- file.path(
+      getwd(),
+      paste0("report", input$report_format,
+             if (is_poly) "_poly" else "", ".Rmd")
+    )
     parameters <- list( # header
       author = input$reportAuthor,
       dataset = input$reportDataName,
+      data_type = data_type(),
       # datasets
       a = nominal(),
       k = key(),
@@ -591,16 +694,19 @@ output$report <- downloadHandler(
       # regression
       multiplot = report_regression_multinomial_plot(),
       # irt
-      irt_wrightmap = report_IRT_binary_wrightmap(),
-      irt_equation = report_IRT_binary_equation(),
-      irt_model = input$report_IRT_binary_model,
+      irt_wrightmap = if (is_poly) report_IRT_poly_wrightmap() else report_IRT_binary_wrightmap(),
+      irt_equation = if (is_poly) report_IRT_poly_equation() else report_IRT_binary_equation(),
+      irt_model = if (is_poly) report_IRT_poly_model_name() else input$report_IRT_binary_model,
       irt_parametrization = input$IRT_binary_summary_parametrization,
-      irt_icc = report_IRT_binary_icc(),
-      irt_iic = report_IRT_binary_iic(),
-      irt_tic = report_IRT_binary_tic(),
-      irt_coef = report_IRT_binary_coef(),
-      irt_ability_plot = report_IRT_binary_ability_plot(),
-      irt_ability_table = report_IRT_binary_ability_table(),
+      irt_icc = if (is_poly) report_IRT_poly_icc() else report_IRT_binary_icc(),
+      irt_iic = if (is_poly) report_IRT_poly_iic() else report_IRT_binary_iic(),
+      irt_tic = if (is_poly) report_IRT_poly_tic() else report_IRT_binary_tic(),
+      irt_coef = if (is_poly) report_IRT_poly_coef() else report_IRT_binary_coef(),
+      irt_ability_plot = if (is_poly) report_IRT_poly_ability_plot() else report_IRT_binary_ability_plot(),
+      irt_ability_table = if (is_poly) report_IRT_poly_ability_table() else report_IRT_binary_ability_table(),
+      # polytomous DIF (only consumed by poly Rmd)
+      DIF_ord_print = if (is_poly && groupPresent()) report_DIF_ord_print() else "",
+      DIF_ord_plot  = if (is_poly && groupPresent()) report_DIF_ord_plot()  else "",
       # DIF
       ### presence of group vector
       isGroupPresent = groupPresent(),
