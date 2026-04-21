@@ -6,17 +6,28 @@ uiAbout <- tabPanel("",
   # Description ####
   #------------------------------------------------------------------------------------#
   h3("Welcome"),
-  p("Welcome to ShinyItemAnalysis!"),
+  p("Welcome to ShinyItemAnalysis", HTML('<sup style="color:#d98b00;">poly</sup>'), "!"),
   p(
-    "ShinyItemAnalysis is an interactive online application for the psychometric analysis of educational tests,
-    psychological assessments, health-related and other types of multi-item measurements, or ratings from
-    multiple raters, built on",
+    strong("ShinyItemAnalysis"), HTML('<sup style="color:#d98b00;">poly</sup>'),
+    "is a fork of",
+    a("ShinyItemAnalysis", href = "https://github.com/patriciamar/ShinyItemAnalysis", target = "_blank"),
+    "(Martinkova, Hladka, & Netik) that extends the interactive application with polytomous IRT models,
+    IRT-based DIF matching, and improved missing data handling. All original ShinyItemAnalysis functionality
+    is preserved. The app is built on",
     a("R", href = "https://cran.r-project.org/", target = "_blank"),
     "and",
     a("shiny", href = "http://www.rstudio.com/shiny/", target = "_blank", .noWS = "after"),
     ". You can easily start using the application with the default toy dataset. You may also select from a number of other
-    toy datasets or upload your own in the ", strong("Data"), " section. Offered methods include:"
+    toy datasets or upload your own in the ", strong("Data"), " section."
   ),
+  p(strong("What's new in this fork:")),
+  tags$ul(
+    tags$li("Full polytomous IRT support (GRM, RSM, PCM, GPCM) alongside NRM, with model comparison (AIC/BIC/LRT) and Wright maps in the ", strong("IRT models / Polytomous"), " section"),
+    tags$li("IRT-theta matching criterion across all regression-based DIF methods, with custom theta-purification loops in the ", strong("DIF/Fairness"), " section"),
+    tags$li("Native missing-data handling: the 'Replace missing values by 0' default is off, letting IRT models use FIML and per-item DIF handle item-level missingness"),
+    tags$li("EAP/WLE toggle for ability estimates with empirical and marginal IRT reliability reporting")
+  ),
+  p("Offered methods include:"),
   tags$ul(
     tags$li("Exploration of total and standard scores in the", strong("Summary"), "section"),
     tags$li("Analysis of measurement error in the", strong("Reliability"), "section"),
@@ -35,7 +46,10 @@ uiAbout <- tabPanel("",
   p(
     "Visit the", a(strong("ShinyItemAnalysis.org"), href = "https://www.shinyitemanalysis.org",
     target = "_blank"
-  ), "webpage to learn more about ShinyItemAnalysis!"),
+  ), "webpage to learn more about the original ShinyItemAnalysis package,
+  or the ",
+    a(strong("fork's GitHub page"), href = "https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly", target = "_blank"),
+    "for details on the polytomous IRT and DIF extensions."),
   tags$hr(),
 
   #------------------------------------------------------------------------------------#
@@ -213,15 +227,14 @@ uiAbout <- tabPanel("",
   #------------------------------------------------------------------------------------#
   h4("Feedback"),
   p(
-    "If you discover a problem with this application please contact the project
-                    maintainer at martinkova(at)cs.cas.cz or use ",
-    a("GitHub.",
-      href = "https://github.com/patriciamar/ShinyItemAnalysis/issues",
+    "For issues specific to the polytomous IRT, DIF, or missing-data extensions in this fork, please ",
+    a("open an issue on the fork's GitHub.",
+      href = "https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly/issues",
       target = "_blank"
     ),
-    "We also encourage you to provide your feedback using ",
-    a("Google form.",
-      href = "https://goo.gl/forms/5ZVR6mTOFJFwmtT52",
+    "For bugs in the core ShinyItemAnalysis functionality, please report upstream at ",
+    a("patriciamar/ShinyItemAnalysis.",
+      href = "https://github.com/patriciamar/ShinyItemAnalysis/issues",
       target = "_blank"
     )
   ),
