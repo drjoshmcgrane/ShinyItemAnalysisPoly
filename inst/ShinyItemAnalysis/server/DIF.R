@@ -1579,7 +1579,7 @@ observe({
                       SE = FALSE, verbose = FALSE,
                       technical = list(NCYCLES = ncycles), TOL = tol)
   }
-  as.vector(mirt::fscores(fit, method = method))
+  as.vector(mirt::fscores(fit, method = method, verbose = FALSE))
 }
 
 # Custom theta-purification loop for logistic DIF: refits the IRT model on
@@ -1764,7 +1764,7 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
     fit <- mirt::mirt(item_dat, model = 1, itemtype = itemtype,
                       SE = FALSE, verbose = FALSE,
                       technical = list(NCYCLES = ncycles), TOL = tol)
-    as.vector(mirt::fscores(fit, method = method))
+    as.vector(mirt::fscores(fit, method = method, verbose = FALSE))
   }
 }
 

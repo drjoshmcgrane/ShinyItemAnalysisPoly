@@ -287,7 +287,7 @@ output$IRT_bock_summary_coef_download <- downloadHandler(
 
 IRT_bock_summary_fscores_zscores <- reactive({
   fit <- IRT_bock_fit_and_orig_levels()[["fit"]]
-  fscore_with_ses <- fscores(fit, full.scores.SE = TRUE)
+  fscore_with_ses <- fscores(fit, full.scores.SE = TRUE, verbose = FALSE)
   colnames(fscore_with_ses) <- c("F-score", "SE(F-score)")
 
   tab <- data.frame(

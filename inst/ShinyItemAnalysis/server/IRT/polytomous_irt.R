@@ -486,7 +486,7 @@ output$IRT_poly_summary_tic_download <- downloadHandler(
 # empirical_rxx() will accept it).
 IRT_poly_fscores_raw <- reactive({
   fit <- IRT_poly_model()
-  fscores(fit, full.scores.SE = TRUE, method = IRT_poly_fscore_method())
+  fscores(fit, full.scores.SE = TRUE, method = IRT_poly_fscore_method(), verbose = FALSE)
 })
 
 # ** Ability estimates ####

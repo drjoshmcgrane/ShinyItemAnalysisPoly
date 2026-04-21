@@ -692,7 +692,7 @@ output$IRT_binary_summary_coef_download <- downloadHandler(
 # empirical_rxx() will accept it).
 IRT_binary_fscores_raw <- reactive({
   fit <- IRT_binary_model()
-  fscores(fit, full.scores.SE = TRUE, method = IRT_binary_fscore_method())
+  fscores(fit, full.scores.SE = TRUE, method = IRT_binary_fscore_method(), verbose = FALSE)
 })
 
 # ** Ability estimates ####

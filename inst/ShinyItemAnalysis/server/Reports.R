@@ -95,7 +95,7 @@ report_IRT_binary_wrightmap <- reactive({
     g <- ""
   } else {
     fit <- IRT_binary_model_1pl()
-    fscore <- as.vector(fscores(fit))
+    fscore <- as.vector(fscores(fit, verbose = FALSE))
     b <- coef(fit, IRTpars = TRUE, simplify = TRUE)$items[, "b"]
 
     g <- ggWrightMap(fscore, b, item.names = item_names())
@@ -252,7 +252,7 @@ report_IRT_binary_ability_plot <- reactive({
   if (is.null(fit)) {
     g <- ""
   } else {
-    fscore <- as.vector(fscores(fit))
+    fscore <- as.vector(fscores(fit, verbose = FALSE))
     zscore <- z_score()
 
     df <- data.frame(fscore, zscore)
@@ -284,7 +284,7 @@ report_IRT_binary_ability_table <- reactive({
   } else {
     score <- as.vector(total_score())
     zscore <- as.vector(z_score())
-    fscore <- fscores(fit)
+    fscore <- fscores(fit, verbose = FALSE)
 
     tab <- data.frame(score, zscore, fscore)
     tab <- data.frame(
