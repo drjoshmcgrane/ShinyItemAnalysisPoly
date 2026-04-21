@@ -5458,15 +5458,12 @@ DIF_cumulative_summary_table_note <- reactive({
 
   res$matching <- paste(
     "Matching criterion:",
-    if (input$DIF_cumulative_summary_matching == "theta") {
-      "IRT \u03B8"
-    } else if (fit$match[1] == "score") {
-      "total score"
-    } else if (fit$match[1] == "zscore") {
-      "standardized total score"
-    } else {
+    switch(input$DIF_cumulative_summary_matching,
+      "theta"  = "IRT \u03B8",
+      "score"  = "total score",
+      "zscore" = "standardized total score",
       "uploaded"
-    }
+    )
   )
   res$type <- paste("DIF type tested:", switch(fit$type,
     "both" = "any DIF ",
@@ -6109,15 +6106,12 @@ DIF_adjacent_summary_table_note <- reactive({
 
   res$matching <- paste(
     "Matching criterion:",
-    if (input$DIF_adjacent_summary_matching == "theta") {
-      "IRT \u03B8"
-    } else if (fit$match[1] == "score") {
-      "total score"
-    } else if (fit$match[1] == "zscore") {
-      "standardized total score"
-    } else {
+    switch(input$DIF_adjacent_summary_matching,
+      "theta"  = "IRT \u03B8",
+      "score"  = "total score",
+      "zscore" = "standardized total score",
       "uploaded"
-    }
+    )
   )
   res$type <- paste("DIF type tested:", switch(fit$type,
     "both" = "any DIF ",
@@ -6714,15 +6708,12 @@ DIF_multinomial_summary_table_note <- reactive({
 
   res$matching <- paste(
     "DDF matching variable:",
-    if (input$DIF_multinomial_summary_matching == "theta") {
-      "IRT \u03B8"
-    } else if (fit$match[1] == "score") {
-      "total score"
-    } else if (fit$match[1] == "zscore") {
-      "standardized total score"
-    } else {
+    switch(input$DIF_multinomial_summary_matching,
+      "theta"  = "IRT \u03B8",
+      "score"  = "total score",
+      "zscore" = "standardized total score",
       "uploaded"
-    }
+    )
   )
   res$type <- paste("DDF type tested:", switch(fit$type,
     "both" = "any DDF ",
