@@ -176,25 +176,25 @@ uiAbout <- tabPanel("",
       6,
       h4("Availability"),
       p(
-        "An application can be downloaded as an R package from",
+        "This fork (ShinyItemAnalysisPoly) is installed from",
         a(
-          href = "https://CRAN.R-project.org/package=ShinyItemAnalysis",
-          "CRAN",
+          href = "https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly",
+          "GitHub",
           target = "_blank",
           .noWS = "after"
         ),
-        ".",
+        "and is not on CRAN.",
         br(),
-        "It is also available online at the",
+        "The upstream ShinyItemAnalysis package is available on",
+        a(
+          href = "https://CRAN.R-project.org/package=ShinyItemAnalysis",
+          "CRAN",
+          target = "_blank"
+        ),
+        "and online at the",
         a(
           href = "https://shiny.cs.cas.cz/ShinyItemAnalysis/",
           "Czech Academy of Sciences 🇨🇿",
-          target = "_blank"
-        ),
-        "and",
-        a(
-          href = "https://cemp.shinyapps.io/ShinyItemAnalysis/",
-          "shinyapps.io 🇺🇸",
           target = "_blank",
           .noWS = "after"
         ),
@@ -208,15 +208,13 @@ uiAbout <- tabPanel("",
     column(
       6, h4("Versions"),
       p(
-        "The current",
-        a("CRAN", href = "https://CRAN.R-project.org/package=ShinyItemAnalysis", target = "_blank"),
-        "version is 1.5.5.",
+        "This fork is version ",
+        strong(as.character(utils::packageVersion("ShinyItemAnalysisPoly"))),
+        ", based on upstream ShinyItemAnalysis 1.5.5.",
         br(),
-        "The version available",
-        a("online", href = "https://shiny.cs.cas.cz/ShinyItemAnalysis/", target = "_blank"), "is 1.5.5.",
-        br(),
-        "The newest development version available on ",
-        a("GitHub", href = "https://github.com/patriciamar/ShinyItemAnalysis", target = "_blank"), "is 1.5.5.",
+        "Latest development available on ",
+        a("GitHub", href = "https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly", target = "_blank"),
+        "."
       )
     )
   ),
