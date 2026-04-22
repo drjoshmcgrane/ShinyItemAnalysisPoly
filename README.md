@@ -38,7 +38,7 @@ All original ShinyItemAnalysis functionality is preserved.
 - **DIF validation checks** no longer require complete item data across all items to count group membership; only the group variable is checked.
 - **Split-half reliability** uses `complete.obs` for the correlation when custom splits are selected, preventing NA output when respondents have item-level missing data.
 
-> **Note for achievement tests**: when missing responses should be scored as incorrect (e.g., timed tests, omitted items = wrong), check the "Replace missing values by 0" box in the Data tab. The tooltip explains when this is appropriate.
+> **Note for achievement tests**: when missing responses should be scored as incorrect (e.g., timed tests, omitted items = wrong), check the "Replace missing values by 0" box in the Data tab. The tooltip explains when this is appropriate. The total score (`rowSums`) is `NA` for respondents with any missing item while this box is unchecked, so analyses that match on total score will exclude them — either tick the box or use the IRT theta / uploaded matching options.
 
 ### Global enhancements
 
@@ -66,10 +66,6 @@ ShinyItemAnalysisPoly::run_app(background = FALSE)
 # or run as a background job in RStudio
 ShinyItemAnalysisPoly::run_app()
 ```
-
-## Known limitations
-
-- The total score (`rowSums`) is intentionally `NA` for respondents with any missing item data. Analyses that use total score as a matching variable will exclude these respondents.
 
 ## Upstream
 
