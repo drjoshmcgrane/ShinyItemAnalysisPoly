@@ -392,10 +392,12 @@ report_DIF_ord_plot <- reactive({
   if (is.null(fit)) return("")
   flagged <- fit$DIFitems
   if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
-  tryCatch(
+  p <- tryCatch(
     plot(fit, item = flagged[1], plot.type = "cumulative"),
-    error = function(e) ""
+    error = function(e) NULL
   )
+  if (is.list(p) && !inherits(p, "ggplot")) p <- p[[1]]
+  if (inherits(p, "ggplot")) p else ""
 })
 
 # Adjacent-category difORD — uses live DIF_adjacent_model() from Adjacent tab.
@@ -415,10 +417,12 @@ report_DIF_adj_plot <- reactive({
   if (is.null(fit)) return("")
   flagged <- fit$DIFitems
   if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
-  tryCatch(
-    plot(fit, item = flagged[1], plot.type = "cumulative"),
-    error = function(e) ""
+  p <- tryCatch(
+    plot(fit, item = flagged[1]),
+    error = function(e) NULL
   )
+  if (is.list(p) && !inherits(p, "ggplot")) p <- p[[1]]
+  if (inherits(p, "ggplot")) p else ""
 })
 
 # Multinomial difNLR (poly nominal) — uses live DIF_multinomial_method() from Multinomial tab.
