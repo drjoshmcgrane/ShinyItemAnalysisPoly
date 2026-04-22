@@ -1632,6 +1632,188 @@ difLogistic_theta_puri <- function(Data, group, focal.name, type,
   fit
 }
 
+# Per-item wrappers bypassing difNLR's global listwise deletion. When matching
+# is theta (no NAs in match), regression-based DIF should only drop rows missing
+# on the specific item under test, not globally.
+.difORD_no_drop <- function(Data, group, focal.name, model = "cumulative",
+                            type = "both", match,
+                            p.adjust.method = "none", alpha = 0.05) {
+  Data <- as.data.frame(Data)
+  m <- ncol(Data); nm <- colnames(Data)
+  per_item <- vector("list", m)
+  for (j in seq_len(m)) {
+    per_item[[j]] <- tryCatch(
+      suppressWarnings(difNLR::difORD(
+        Data = Data[, j, drop = FALSE], group = group, focal.name = focal.name,
+        model = model, type = type, match = match,
+        purify = FALSE, p.adjust.method = "none", alpha = alpha)),
+      error = function(e) e)
+  }
+  good <- !vapply(per_item, inherits, logical(1), what = "error")
+  Sval<-rep(NA_real_,m);pval<-rep(NA_real_,m);df_v<-rep(NA_real_,m)
+  llM0<-rep(NA_real_,m);llM1<-rep(NA_real_,m)
+  AICM0<-rep(NA_real_,m);AICM1<-rep(NA_real_,m);BICM0<-rep(NA_real_,m);BICM1<-rep(NA_real_,m)
+  parM0<-vector("list",m);parM1<-vector("list",m)
+  covM0<-vector("list",m);covM1<-vector("list",m)
+  ordPAR<-vector("list",m);ordSE<-vector("list",m)
+  seM0<-vector("list",m);seM1<-vector("list",m)
+  group.names <- as.character(sort(unique(stats::na.omit(group))))
+  for (j in which(good)) {
+    f <- per_item[[j]]
+    Sval[j]<-f$Sval[1];pval[j]<-f$pval[1];df_v[j]<-f$df[1]
+    llM0[j]<-f$llM0[1];llM1[j]<-f$llM1[1]
+    AICM0[j]<-f$AICM0[1];AICM1[j]<-f$AICM1[1];BICM0[j]<-f$BICM0[1];BICM1[j]<-f$BICM1[1]
+    parM0[[j]]<-f$parM0[[1]];parM1[[j]]<-f$parM1[[1]]
+    covM0[[j]]<-f$covM0[[1]];covM1[[j]]<-f$covM1[[1]]
+    seM0[[j]]<-if(!is.null(f$covM0[[1]])) sqrt(diag(f$covM0[[1]])) else NULL
+    seM1[[j]]<-if(!is.null(f$covM1[[1]])) sqrt(diag(f$covM1[[1]])) else NULL
+    if (!is.null(f$group.names)) group.names <- f$group.names
+  }
+  names(parM0)<-names(parM1)<-names(covM0)<-names(covM1)<-nm
+  adj.pval <- stats::p.adjust(pval, method = p.adjust.method)
+  significant <- which(adj.pval < alpha)
+  DIFitems <- if (length(significant)==0L) "No DIF item detected" else significant
+  for (j in seq_len(m)) {
+    if (j %in% significant) { ordPAR[[j]]<-parM1[[j]]; ordSE[[j]]<-seM1[[j]] }
+    else { ordPAR[[j]]<-parM0[[j]]; ordSE[[j]]<-seM0[[j]] }
+  }
+  names(ordPAR)<-names(ordSE)<-nm
+  out <- list(Sval=Sval, ordPAR=ordPAR, ordSE=ordSE,
+    parM0=parM0, parM1=parM1, covM0=covM0, covM1=covM1,
+    llM0=llM0, llM1=llM1, AICM0=AICM0, AICM1=AICM1, BICM0=BICM0, BICM1=BICM1,
+    DIFitems=DIFitems, model=model, type=type, anchor=NULL,
+    purification=FALSE, p.adjust.method=p.adjust.method,
+    pval=pval, adj.pval=adj.pval, df=df_v, alpha=alpha,
+    Data=as.data.frame(Data), group=group, group.names=group.names,
+    match=setNames(as.data.frame(replicate(m, match)), paste0("MATCH", seq_len(m))),
+    match.name="match")
+  class(out) <- "difORD"
+  out
+}
+
+.difNLR_no_drop <- function(Data, group, focal.name, model, type = "all",
+                            method = "nls", match,
+                            p.adjust.method = "none", alpha = 0.05, test = "LR") {
+  Data <- as.data.frame(Data)
+  m <- ncol(Data); nm <- colnames(Data)
+  per_item <- vector("list", m)
+  for (j in seq_len(m)) {
+    per_item[[j]] <- tryCatch(
+      suppressWarnings(difNLR::difNLR(
+        Data = Data[, j, drop = FALSE], group = group, focal.name = focal.name,
+        model = model, type = type, method = method, match = match,
+        purify = FALSE, test = test, p.adjust.method = "none", alpha = alpha)),
+      error = function(e) e)
+  }
+  good <- !vapply(per_item, inherits, logical(1), what = "error")
+  Sval<-rep(NA_real_,m);pval<-rep(NA_real_,m);df_v<-rep(NA_real_,m)
+  llM0<-rep(NA_real_,m);llM1<-rep(NA_real_,m)
+  parM0<-vector("list",m);parM1<-vector("list",m)
+  seM0<-vector("list",m);seM1<-vector("list",m)
+  covM0<-vector("list",m);covM1<-vector("list",m)
+  nlrPAR<-vector("list",m);nlrSE<-vector("list",m)
+  conv.fail<-0L;conv.fail.which<-integer(0)
+  group.names <- as.character(sort(unique(stats::na.omit(group))))
+  constraints_v<-vector("list",m);types_v<-vector("list",m)
+  for (j in which(good)) {
+    f <- per_item[[j]]
+    Sval[j]<-f$Sval[1];pval[j]<-f$pval[1];df_v[j]<-f$df[1]
+    llM0[j]<-f$llM0[1];llM1[j]<-f$llM1[1]
+    parM0[[j]]<-f$parM0[[1]];parM1[[j]]<-f$parM1[[1]]
+    seM0[[j]]<-f$seM0[[1]];seM1[[j]]<-f$seM1[[1]]
+    covM0[[j]]<-f$covM0[[1]];covM1[[j]]<-f$covM1[[1]]
+    nlrPAR[[j]]<-f$nlrPAR[[1]];nlrSE[[j]]<-f$nlrSE[[1]]
+    constraints_v[[j]]<-f$constraints[[1]];types_v[[j]]<-f$types[[1]]
+    if (isTRUE(f$conv.fail >= 1)) { conv.fail<-conv.fail+1L; conv.fail.which<-c(conv.fail.which,j) }
+    if (!is.null(f$group.names)) group.names <- f$group.names
+  }
+  names(parM0)<-names(parM1)<-names(seM0)<-names(seM1)<-
+    names(covM0)<-names(covM1)<-names(nlrPAR)<-names(nlrSE)<-nm
+  adj.pval <- stats::p.adjust(pval, method = p.adjust.method)
+  significant <- which(adj.pval < alpha)
+  DIFitems <- if (length(significant)==0L) "No DIF item detected" else significant
+  for (j in seq_len(m)) {
+    if (j %in% significant) { nlrPAR[[j]]<-parM1[[j]]; nlrSE[[j]]<-seM1[[j]] }
+    else { nlrPAR[[j]]<-parM0[[j]]; nlrSE[[j]]<-seM0[[j]] }
+  }
+  names(nlrPAR)<-names(nlrSE)<-nm
+  out <- list(Sval=Sval, nlrPAR=nlrPAR, nlrSE=nlrSE,
+    parM0=parM0, seM0=seM0, covM0=covM0, llM0=llM0,
+    parM1=parM1, seM1=seM1, covM1=covM1, llM1=llM1,
+    DIFitems=DIFitems,
+    model=if(length(model)==1L) rep(model,m) else model,
+    constraints=constraints_v,
+    type=if(length(type)==1L) rep(type,m) else type,
+    types=types_v, p.adjust.method=p.adjust.method,
+    pval=pval, adj.pval=adj.pval, df=df_v,
+    test=test, anchor=NULL, purification=FALSE, method=method,
+    conv.fail=conv.fail, conv.fail.which=conv.fail.which, alpha=alpha,
+    Data=as.data.frame(Data), group=group, group.names=group.names,
+    match=setNames(as.data.frame(replicate(m, match)), paste0("MATCH", seq_len(m))),
+    match.name="Matching criterion")
+  class(out) <- "difNLR"
+  out
+}
+
+.ddfMLR_no_drop <- function(Data, group, focal.name, key, type = "both",
+                            match, p.adjust.method = "none", alpha = 0.05) {
+  Data <- as.data.frame(Data)
+  m <- ncol(Data); nm <- colnames(Data)
+  per_item <- vector("list", m)
+  for (j in seq_len(m)) {
+    keep <- !is.na(Data[, j]) & !is.na(group) & !is.na(match)
+    per_item[[j]] <- tryCatch(
+      suppressWarnings(difNLR::ddfMLR(
+        Data = Data[keep, j, drop = FALSE],
+        group = group[keep], focal.name = focal.name,
+        key = key[j], type = type, match = match[keep],
+        purify = FALSE, p.adjust.method = "none", alpha = alpha)),
+      error = function(e) e)
+  }
+  good <- !vapply(per_item, inherits, logical(1), what = "error")
+  Sval<-rep(NA_real_,m);pval<-rep(NA_real_,m);df_v<-rep(NA_real_,m)
+  llM0<-rep(NA_real_,m);llM1<-rep(NA_real_,m)
+  AICM0<-rep(NA_real_,m);AICM1<-rep(NA_real_,m);BICM0<-rep(NA_real_,m);BICM1<-rep(NA_real_,m)
+  parM0<-vector("list",m);parM1<-vector("list",m)
+  covM0<-vector("list",m);covM1<-vector("list",m)
+  seM0<-vector("list",m);seM1<-vector("list",m)
+  mlrPAR<-vector("list",m);mlrSE<-vector("list",m)
+  group.names <- as.character(sort(unique(stats::na.omit(group))))
+  for (j in which(good)) {
+    f <- per_item[[j]]
+    Sval[j]<-f$Sval[1];pval[j]<-f$pval[1];df_v[j]<-f$df[1]
+    llM0[j]<-f$llM0[1];llM1[j]<-f$llM1[1]
+    AICM0[j]<-f$AICM0[1];AICM1[j]<-f$AICM1[1];BICM0[j]<-f$BICM0[1];BICM1[j]<-f$BICM1[1]
+    parM0[[j]]<-f$parM0[[1]];parM1[[j]]<-f$parM1[[1]]
+    covM0[[j]]<-f$covM0[[1]];covM1[[j]]<-f$covM1[[1]]
+    seM0[[j]]<-if(!is.null(f$covM0[[1]])) sqrt(diag(f$covM0[[1]])) else NULL
+    seM1[[j]]<-if(!is.null(f$covM1[[1]])) sqrt(diag(f$covM1[[1]])) else NULL
+    mlrPAR[[j]]<-f$mlrPAR[[1]];mlrSE[[j]]<-f$mlrSE[[1]]
+    if (!is.null(f$group.names)) group.names <- f$group.names
+  }
+  names(parM0)<-names(parM1)<-names(covM0)<-names(covM1)<-
+    names(mlrPAR)<-names(mlrSE)<-nm
+  adj.pval <- stats::p.adjust(pval, method = p.adjust.method)
+  significant <- which(adj.pval < alpha)
+  DDFitems <- if (length(significant)==0L) "No DDF item detected" else significant
+  for (j in seq_len(m)) {
+    if (j %in% significant) { mlrPAR[[j]]<-parM1[[j]]; mlrSE[[j]]<-seM1[[j]] }
+    else { mlrPAR[[j]]<-parM0[[j]]; mlrSE[[j]]<-seM0[[j]] }
+  }
+  names(mlrPAR)<-names(mlrSE)<-nm
+  out <- list(Sval=Sval, mlrPAR=mlrPAR, mlrSE=mlrSE,
+    parM0=parM0, parM1=parM1, covM0=covM0, covM1=covM1,
+    llM0=llM0, llM1=llM1, AICM0=AICM0, AICM1=AICM1, BICM0=BICM0, BICM1=BICM1,
+    DDFitems=DDFitems, anchor=NULL, type=type,
+    purification=FALSE, p.adjust.method=p.adjust.method,
+    pval=pval, adj.pval=adj.pval, df=df_v, alpha=alpha,
+    Data=as.data.frame(Data), group=group, group.names=group.names, key=key,
+    match=setNames(as.data.frame(replicate(m, match)), paste0("MATCH", seq_len(m))),
+    match.name="Matching criterion")
+  class(out) <- "ddfMLR"
+  out
+}
+
 difNLR_theta_puri <- function(Data, group, focal.name, model, type,
                               p.adjust.method, method, fit_irt_fn,
                               max.iter = 10) {
@@ -1645,10 +1827,10 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
     fit <- tryCatch(
-      difNLR(
+      .difNLR_no_drop(
         Data = Data, group = group, focal.name = focal.name,
         match = theta, model = model, type = type,
-        p.adjust.method = p.adjust.method, purify = FALSE,
+        p.adjust.method = p.adjust.method,
         test = "LR", method = method
       ),
       error = function(e) e
@@ -1699,10 +1881,10 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
     fit <- tryCatch(
-      ddfMLR(
+      .ddfMLR_no_drop(
         Data = Data, group = group, focal.name = focal.name,
         match = theta, key = key, type = type,
-        p.adjust.method = p.adjust.method, purify = FALSE
+        p.adjust.method = p.adjust.method
       ),
       error = function(e) e
     )
@@ -1784,10 +1966,10 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
 
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
-    fit <- difNLR::difORD(
+    fit <- .difORD_no_drop(
       Data = Data, group = group, focal.name = focal.name,
       model = model, match = theta, type = type,
-      purify = FALSE, p.adjust.method = p.adjust.method
+      p.adjust.method = p.adjust.method
     )
     flagged_raw <- fit$DIFitems
     flagged <- if (is.character(flagged_raw) &&
@@ -2762,12 +2944,21 @@ DIF_NLR_method <- reactive({
     }
 
     fit <- tryCatch(
-      difNLR(
-        Data = data, group = group, focal.name = 1, match = match,
-        model = model, type = type,
-        p.adjust.method = adj.method, purify = if (matching_val == "theta") FALSE else purify,
-        test = "LR", method = est_method
-      ),
+      if (matching_val == "theta") {
+        .difNLR_no_drop(
+          Data = data, group = group, focal.name = 1, match = match,
+          model = model, type = type,
+          p.adjust.method = adj.method,
+          test = "LR", method = est_method
+        )
+      } else {
+        difNLR(
+          Data = data, group = group, focal.name = 1, match = match,
+          model = model, type = type,
+          p.adjust.method = adj.method, purify = purify,
+          test = "LR", method = est_method
+        )
+      },
       error = function(e) e
     )
   }
@@ -5258,12 +5449,19 @@ DIF_cumulative_method <- reactive({
     } else {
       match <- matching_val  # "score" or "zscore"
     }
-    fit <- difNLR::difORD(
-      Data = data, group = group,
-      focal.name = 1, model = "cumulative", match = match,
-      type = type, purify = if (matching_val == "theta") FALSE else puri,
-      p.adjust.method = corr
-    )
+    fit <- if (matching_val == "theta") {
+      .difORD_no_drop(
+        Data = data, group = group, focal.name = 1,
+        model = "cumulative", match = match, type = type,
+        p.adjust.method = corr
+      )
+    } else {
+      difNLR::difORD(
+        Data = data, group = group, focal.name = 1,
+        model = "cumulative", match = match, type = type,
+        purify = puri, p.adjust.method = corr
+      )
+    }
   }
   fit
 })
@@ -5980,12 +6178,19 @@ DIF_adjacent_model <- reactive({
     } else {
       match <- matching_val
     }
-    fit <- difNLR::difORD(
-      Data = data, group = group,
-      focal.name = 1, model = "adjacent", match = match,
-      type = type, purify = if (matching_val == "theta") FALSE else puri,
-      p.adjust.method = corr
-    )
+    fit <- if (matching_val == "theta") {
+      .difORD_no_drop(
+        Data = data, group = group, focal.name = 1,
+        model = "adjacent", match = match, type = type,
+        p.adjust.method = corr
+      )
+    } else {
+      difNLR::difORD(
+        Data = data, group = group, focal.name = 1,
+        model = "adjacent", match = match, type = type,
+        purify = puri, p.adjust.method = corr
+      )
+    }
   }
   fit
 })
@@ -6562,11 +6767,18 @@ DIF_multinomial_method <- reactive({
     }
 
     fit <- tryCatch(
-      ddfMLR(
-        Data = data, group = group, focal.name = 1, match = match,
-        key = key, p.adjust.method = corr,
-        type = type, purify = if (matching_val == "theta") FALSE else puri
-      ),
+      if (matching_val == "theta") {
+        .ddfMLR_no_drop(
+          Data = data, group = group, focal.name = 1, match = match,
+          key = key, p.adjust.method = corr, type = type
+        )
+      } else {
+        ddfMLR(
+          Data = data, group = group, focal.name = 1, match = match,
+          key = key, p.adjust.method = corr,
+          type = type, purify = puri
+        )
+      },
       error = function(e) e
     )
   }
