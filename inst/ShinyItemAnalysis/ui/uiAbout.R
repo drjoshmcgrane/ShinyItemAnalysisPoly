@@ -180,8 +180,7 @@ uiAbout <- tabPanel("",
         a(
           href = "https://github.com/drjoshmcgrane/ShinyItemAnalysisPoly",
           "GitHub",
-          target = "_blank",
-          .noWS = "after"
+          target = "_blank"
         ),
         "and is not on CRAN.",
         br(),
