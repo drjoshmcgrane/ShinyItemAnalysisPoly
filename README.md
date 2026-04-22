@@ -25,6 +25,7 @@ All original ShinyItemAnalysis functionality is preserved.
 ### DIF/Fairness enhancements
 
 - **IRT theta matching criterion** added to all regression-based DIF methods: logistic, NLR, cumulative logit, adjacent category logit, and multinomial (DDF).
+- **No-listwise-deletion wrappers** for `difNLR`, `difORD`, and `ddfMLR`: theta-matched DIF is routed through per-item wrappers that preserve respondents with partial item missingness, sidestepping the upstream listwise-deletion behavior.
 - **Custom theta-purification loops** that refit the IRT model on non-flagged items each iteration, for both dichotomous and polytomous DIF.
 - **Total score and uploaded matching options** added to NLR (previously only standardized total score).
 - **Dynamic DIF equations** that update to reflect the selected matching criterion (theta vs Z-score).
@@ -68,7 +69,6 @@ ShinyItemAnalysisPoly::run_app()
 
 ## Known limitations
 
-- `difNLR::difORD` and `difNLR::difNLR` (external package) perform internal listwise deletion. When IRT theta is used as the matching criterion for ordinal DIF or NLR, respondents with any missing item data are still dropped by the external package. This requires an upstream fix.
 - The total score (`rowSums`) is intentionally `NA` for respondents with any missing item data. Analyses that use total score as a matching variable will exclude these respondents.
 
 ## Upstream

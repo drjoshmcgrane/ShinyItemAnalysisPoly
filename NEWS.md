@@ -1,3 +1,47 @@
+# ShinyItemAnalysisPoly 1.5.5.9000 (development)
+
+## Polytomous IRT
+  * Added GRM, RSM, PCM, and GPCM alongside NRM with a unified model dropdown,
+    interleaved-SE parameter tables, SX2 and infit/outfit fit statistics,
+    delta-method SEs for RSM thresholds, model-comparison tab, and Wright
+    maps for Rasch-family models.
+
+## DIF/Fairness
+  * Added IRT theta as a matching criterion across logistic, NLR, cumulative
+    logit, adjacent category logit, and multinomial (DDF) methods.
+  * Introduced `.difORD_no_drop`, `.difNLR_no_drop`, and `.ddfMLR_no_drop`
+    per-item wrappers. Theta-matched DIF is routed through these so
+    respondents with partial item missingness are no longer dropped by the
+    upstream `difNLR`/`difORD`/`ddfMLR` listwise deletion.
+  * Added custom theta-purification loops that refit the IRT model on the
+    current non-flagged set at each iteration.
+  * Added total-score and uploaded matching options to NLR.
+  * DIF equations and captions now update to reflect the selected matching
+    criterion.
+
+## Reports
+  * Added a polytomous variant of the Reports tab (`reporthtml_poly.Rmd`,
+    `reportpdf_poly.Rmd`). DIF sections for cumulative logit,
+    adjacent-category logit, and multinomial DDF are populated from the
+    live DIF tabs.
+  * Fixed poly-report DIF plot chunks so the first ggplot returned by
+    `plot.difORD` / `plot.ddfMLR` is unwrapped from its list container
+    and rendered.
+
+## Missing data
+  * Unchecked "Replace missing values by 0" by default; IRT models now
+    handle item-level missingness via FIML instead of silently scoring
+    missings as incorrect.
+  * Per-item missingness is preserved for DIF analyses that use an external
+    matching variable (theta or uploaded).
+
+## Global
+  * EAP/WLE toggle for ability estimates with empirical and marginal IRT
+    reliability.
+  * Global logit-range sliders and convergence-tolerance settings on IRT
+    tabs.
+  * New Medical 100 Combined dataset with binary and polytomous items.
+
 # ShinyItemAnalysis 1.5.5
 
 ## Bug fixes

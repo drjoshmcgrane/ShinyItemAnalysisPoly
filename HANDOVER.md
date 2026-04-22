@@ -4,7 +4,15 @@
 
 - **Committed**: three per-item wrappers (`.difORD_no_drop`, `.difNLR_no_drop`, `.ddfMLR_no_drop`) inserted into `inst/ShinyItemAnalysis/server/DIF.R` (before `difNLR_theta_puri`). All three `_theta_puri` helpers and all four non-puri theta branches route through the wrappers when `matching_val == "theta"`. Non-theta paths unchanged.
 - **CLI-verified**: `Data <- as.data.frame(Data)` up front, joint-rebuild of `ordPAR`/`nlrPAR`/`mlrPAR` from parM0/parM1 post-`p.adjust`, and ddfMLR per-item pre-filter. End-to-end `coef()`, `plot()`, and `rownames(item_names())` all pass on CZmaturaS (cumulative/adjacent, m=30), GMAT (3PL, m=20), and dataMedicaltest (multinomial, m=20) — including `data.table` inputs that reproduced the previous [30] vs [15] regression.
-- **Pending**: chromote smoke-test in the live app, plus PDF/HTML report render check.
+- **Chromote smoke-test (2026-04-22)**: 5/5 DIF theta-matching paths clean (0 shiny-output errors):
+  - CZmaturaS → Cumulative logit + theta ✓
+  - CZmaturaS → Adjacent category logit + theta ✓
+  - CZmaturaS → Cumulative logit + theta + purification ON ✓
+  - dataMedical → Multinomial + theta ✓
+  - GMAT → Generalized logistic (NLR) + theta ✓
+  Drivers: `/tmp/uat_full.R`, `/tmp/uat_rest.R`.
+- **Report render (headless Rmd, 2026-04-22)**: DIF sections of `reporthtml_poly.Rmd` render cleanly (628 KB HTML) when fed real `.difORD_no_drop` outputs for CZmaturaS (cumulative + adjacent under theta matching). Driver: `/tmp/mini_render.R` + `/tmp/mini_dif.Rmd`. Chromote-driven full-app render was unstable in this session (Shiny worker went unresponsive after the `generate` click; `/tmp/uat_report*.R`), so manual browser download of the PDF/HTML remains worth doing once.
+- **Pre-existing observation (not a regression)**: `plot.difORD` returns a `list` of ggplots (one per response category). The Rmd plot chunks (`DIF-ord-plot`, `DIF-adj-plot`) gate on `inherits(params$DIF_ord_plot, "ggplot")`, which is `FALSE` for a list, so the plots are skipped in the poly report today. Fix is one-line in `server/Reports.R::report_DIF_ord_plot()` (e.g., return `fit$plot[[1]]` or wrap in `patchwork::wrap_plots`) — file as separate follow-up.
 
 ## Why this is safe to retry now (vs the previous revert)
 
