@@ -74,6 +74,10 @@ params:
   DIF_multinomial_plot: NA
   DIF_ord_print: NA
   DIF_ord_plot: NA
+  DIF_adj_print: NA
+  DIF_adj_plot: NA
+  DIF_multinom_print: NA
+  DIF_multinom_plot: NA
   data_type: NA
   sessionInfo: NA
 ---
@@ -771,7 +775,11 @@ if (!is.null(tab)) {
 ```{r DIF-section-settings, echo = FALSE}
 has_ord_dif <- !is.null(params$DIF_ord_print) && nchar(params$DIF_ord_print) > 0 &&
   !grepl("^DIF \\(cumulative logit\\) could not be fit\\.$", params$DIF_ord_print)
-show_DIF <- any(c(params$histCheck, params$deltaplotCheck, params$MHCheck, params$logregCheck, params$multiCheck, has_ord_dif))
+has_adj_dif <- !is.null(params$DIF_adj_print) && nchar(params$DIF_adj_print) > 0 &&
+  !grepl("^DIF \\(adjacent category logit\\) could not be fit\\.$", params$DIF_adj_print)
+has_multinom_dif <- !is.null(params$DIF_multinom_print) && nchar(params$DIF_multinom_print) > 0 &&
+  !grepl("^DIF \\(multinomial\\) could not be fit\\.$", params$DIF_multinom_print)
+show_DIF <- any(c(params$histCheck, params$deltaplotCheck, params$MHCheck, params$logregCheck, params$multiCheck, has_ord_dif, has_adj_dif, has_multinom_dif))
 check_group <- !params$isGroupPresent
 ```
 
@@ -1387,6 +1395,42 @@ The cumulative-logit ordinal DIF method (difORD) tests for uniform and/or non-un
 
 ```{r DIF-ord-plot, eval = show_DIF && has_ord_dif && inherits(params$DIF_ord_plot, "ggplot"), echo = FALSE, fig.width = 8, fig.height = 5}
 params$DIF_ord_plot
+```
+
+```{r DIF-adj-section, eval = show_DIF && has_adj_dif, echo = FALSE, results = 'asis'}
+cat("
+\\pagebreak
+
+## DIF detection using adjacent category logit (difORD)
+
+The adjacent-category logit ordinal DIF method (difORD) tests for uniform and/or non-uniform DIF on polytomous ordinal items.
+
+\\begin{verbatim}
+", params$DIF_adj_print, "
+\\end{verbatim}
+")
+```
+
+```{r DIF-adj-plot, eval = show_DIF && has_adj_dif && inherits(params$DIF_adj_plot, "ggplot"), echo = FALSE, fig.width = 8, fig.height = 5}
+params$DIF_adj_plot
+```
+
+```{r DIF-multinom-section, eval = show_DIF && has_multinom_dif, echo = FALSE, results = 'asis'}
+cat("
+\\pagebreak
+
+## DIF detection using multinomial regression (difNLR)
+
+For nominal polytomous items, multinomial log-linear regression detects DDF by modelling each non-key category against the key.
+
+\\begin{verbatim}
+", params$DIF_multinom_print, "
+\\end{verbatim}
+")
+```
+
+```{r DIF-multinom-plot, eval = show_DIF && has_multinom_dif && inherits(params$DIF_multinom_plot, "ggplot"), echo = FALSE, fig.width = 8, fig.height = 5}
+params$DIF_multinom_plot
 ```
 
 ```{r DIF-section-closing, eval = show_DIF, echo = FALSE, results = 'asis'}

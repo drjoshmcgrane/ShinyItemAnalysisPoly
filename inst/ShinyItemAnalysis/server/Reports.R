@@ -398,6 +398,58 @@ report_DIF_ord_plot <- reactive({
   )
 })
 
+# Adjacent-category difORD — uses live DIF_adjacent_model() from Adjacent tab.
+report_DIF_adj_fit <- reactive({
+  tryCatch(DIF_adjacent_model(), error = function(e) NULL)
+})
+
+report_DIF_adj_print <- reactive({
+  fit <- report_DIF_adj_fit()
+  if (is.null(fit) || inherits(fit, "error")) return("DIF (adjacent category logit) could not be fit.")
+  out <- utils::capture.output(print(fit))
+  paste(out, collapse = "\n")
+})
+
+report_DIF_adj_plot <- reactive({
+  fit <- report_DIF_adj_fit()
+  if (is.null(fit)) return("")
+  flagged <- fit$DIFitems
+  if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
+  tryCatch(
+    plot(fit, item = flagged[1], plot.type = "cumulative"),
+    error = function(e) ""
+  )
+})
+
+# Multinomial difNLR (poly nominal) — uses live DIF_multinomial_method() from Multinomial tab.
+report_DIF_multinom_fit <- reactive({
+  tryCatch(DIF_multinomial_method(), error = function(e) NULL)
+})
+
+report_DIF_multinom_print <- reactive({
+  fit <- report_DIF_multinom_fit()
+  if (is.null(fit) || inherits(fit, "error")) return("DIF (multinomial) could not be fit.")
+  out <- utils::capture.output(print(fit))
+  paste(out, collapse = "\n")
+})
+
+report_DIF_multinom_plot <- reactive({
+  fit <- report_DIF_multinom_fit()
+  if (is.null(fit)) return("")
+  flagged <- fit$DDFitems
+  if (is.character(flagged) && flagged[1] == "No DDF item detected") return("")
+  tryCatch(
+    plotDIFMultinomial_report_wrapper(fit, flagged[1]),
+    error = function(e) ""
+  )
+})
+
+# Helper: extract a single-item plot from difNLR multinomial output.
+plotDIFMultinomial_report_wrapper <- function(fit, item) {
+  p <- plot(fit, item = item)
+  if (inherits(p, "list") && length(p) > 0) p[[1]] else p
+}
+
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * DIF ####
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -707,6 +759,10 @@ output$report <- downloadHandler(
       # polytomous DIF (only consumed by poly Rmd)
       DIF_ord_print = if (is_poly && groupPresent()) report_DIF_ord_print() else "",
       DIF_ord_plot  = if (is_poly && groupPresent()) report_DIF_ord_plot()  else "",
+      DIF_adj_print = if (is_poly && groupPresent() && isTRUE(data_type() == "ordinal")) report_DIF_adj_print() else "",
+      DIF_adj_plot  = if (is_poly && groupPresent() && isTRUE(data_type() == "ordinal")) report_DIF_adj_plot()  else "",
+      DIF_multinom_print = if (is_poly && groupPresent() && isTRUE(data_type() == "nominal")) report_DIF_multinom_print() else "",
+      DIF_multinom_plot  = if (is_poly && groupPresent() && isTRUE(data_type() == "nominal")) report_DIF_multinom_plot()  else "",
       # DIF
       ### presence of group vector
       isGroupPresent = groupPresent(),
