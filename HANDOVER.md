@@ -1,18 +1,19 @@
-# Handover — difNLR/difORD listwise deletion fix (integrated, pending smoke-test)
+# Handover — no-drop DIF wrappers + docs/report polish (shipped)
 
-## Status
+## Status (2026-04-23)
 
-- **Committed**: three per-item wrappers (`.difORD_no_drop`, `.difNLR_no_drop`, `.ddfMLR_no_drop`) inserted into `inst/ShinyItemAnalysis/server/DIF.R` (before `difNLR_theta_puri`). All three `_theta_puri` helpers and all four non-puri theta branches route through the wrappers when `matching_val == "theta"`. Non-theta paths unchanged.
-- **CLI-verified**: `Data <- as.data.frame(Data)` up front, joint-rebuild of `ordPAR`/`nlrPAR`/`mlrPAR` from parM0/parM1 post-`p.adjust`, and ddfMLR per-item pre-filter. End-to-end `coef()`, `plot()`, and `rownames(item_names())` all pass on CZmaturaS (cumulative/adjacent, m=30), GMAT (3PL, m=20), and dataMedicaltest (multinomial, m=20) — including `data.table` inputs that reproduced the previous [30] vs [15] regression.
-- **Chromote smoke-test (2026-04-22)**: 5/5 DIF theta-matching paths clean (0 shiny-output errors):
-  - CZmaturaS → Cumulative logit + theta ✓
-  - CZmaturaS → Adjacent category logit + theta ✓
-  - CZmaturaS → Cumulative logit + theta + purification ON ✓
-  - dataMedical → Multinomial + theta ✓
-  - GMAT → Generalized logistic (NLR) + theta ✓
-  Drivers: `/tmp/uat_full.R`, `/tmp/uat_rest.R`.
-- **Report render (headless Rmd, 2026-04-22)**: DIF sections of `reporthtml_poly.Rmd` render cleanly (628 KB HTML) when fed real `.difORD_no_drop` outputs for CZmaturaS (cumulative + adjacent under theta matching). Driver: `/tmp/mini_render.R` + `/tmp/mini_dif.Rmd`. Chromote-driven full-app render was unstable in this session (Shiny worker went unresponsive after the `generate` click; `/tmp/uat_report*.R`), so manual browser download of the PDF/HTML remains worth doing once.
-- **Pre-existing observation (not a regression)**: `plot.difORD` returns a `list` of ggplots (one per response category). The Rmd plot chunks (`DIF-ord-plot`, `DIF-adj-plot`) gate on `inherits(params$DIF_ord_plot, "ggplot")`, which is `FALSE` for a list, so the plots are skipped in the poly report today. Fix is one-line in `server/Reports.R::report_DIF_ord_plot()` (e.g., return `fit$plot[[1]]` or wrap in `patchwork::wrap_plots`) — file as separate follow-up.
+All work from this branch is committed and pushed to `poly/master`. Tip: `bd80a1f`.
+
+- **No-drop DIF wrappers** (`d7a493e` and earlier): `.difORD_no_drop`, `.difNLR_no_drop`, `.ddfMLR_no_drop` in `inst/ShinyItemAnalysis/server/DIF.R`. All theta-matched DIF (logistic via existing path; cumulative/adjacent/NLR/multinomial via these wrappers, incl. their `_theta_puri` variants) skip `difNLR`/`difORD`/`ddfMLR` listwise deletion.
+- **CLI-verified**: `as.data.frame(Data)` at wrapper entry (fixes data.table [30]/[15] regression); joint-rebuild of `ordPAR`/`nlrPAR`/`mlrPAR` from `parM0`/`parM1` post `p.adjust`; ddfMLR per-item pre-filter. `coef()`, `plot()`, `rownames(item_names())` pass on CZmaturaS, GMAT, dataMedicaltest.
+- **Chromote smoke-test (2026-04-22)**: 5/5 clean (CZ cumulative/adjacent/+purification, Medical multinomial, GMAT NLR). Drivers: `/tmp/uat_full.R`, `/tmp/uat_rest.R`.
+- **Poly report plot fix** (`405250f`): `report_DIF_ord_plot()` and `report_DIF_adj_plot()` now unwrap the list `plot.difORD` returns to its first ggplot. Headless render of `reporthtml_poly.Rmd` grows 628 KB → 1.57 MB with plots embedded. Driver: `/tmp/mini_render.R` + `/tmp/mini_dif.Rmd`.
+- **Docs refresh** (`c8b026a`, `11c3f4e`, `fb25976`, `bd80a1f`): NEWS `1.5.5.9000` entry added; README DIF section updated and stale "Known limitations" folded into the missing-data note; About tab no longer claims CRAN availability and reads version dynamically via `utils::packageVersion()`.
+
+## Open follow-ups
+
+- Manual browser download of the poly PDF/HTML report is still worth doing once end-to-end. Chromote-driven full-app render was unstable in this session (Shiny worker went unresponsive after `generate`; `/tmp/uat_report*.R`), which is why the verification was done via headless `rmarkdown::render`.
+- `uiReferences.R` CRAN links are all for dependencies (fine). `uiModules.R:27` points at upstream SIA module repo — correct context, left as-is.
 
 ## Why this is safe to retry now (vs the previous revert)
 
