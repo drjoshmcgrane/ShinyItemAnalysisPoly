@@ -644,14 +644,19 @@ validity_predictor <- reactive({
                 label  = "Standardized total score (z)"))
   }
   if (choice == "theta") {
+    # Try the dichotomous IRT model first; fall back to the polytomous IRT
+    # model if items are polytomous (the binary fit will error out).
     fs <- tryCatch(IRT_binary_fscores_raw(), error = function(e) NULL)
-    if (is.null(fs)) {
-      # Fallback: tell the user to fit a binary IRT model
-      return(list(values = NULL,
-                  label  = "IRT θ"))
+    if (!is.null(fs)) {
+      return(list(values = as.numeric(fs[, 1]),
+                  label  = "IRT θ (dichotomous)"))
     }
-    return(list(values = as.numeric(fs[, 1]),
-                label  = "IRT θ"))
+    fs <- tryCatch(IRT_poly_fscores_raw(), error = function(e) NULL)
+    if (!is.null(fs)) {
+      return(list(values = as.numeric(fs[, 1]),
+                  label  = "IRT θ (polytomous)"))
+    }
+    return(list(values = NULL, label = "IRT θ"))
   }
   list(values = as.numeric(total_score()),
        label  = "Total score")
@@ -662,10 +667,11 @@ output$validity_predictor_warning <- renderUI({
   p <- validity_predictor()
   if (is.null(p$values)) {
     return(HTML(paste0("<div style='color:#cc6600'>",
-      "IRT θ is not available — the dichotomous IRT model in the ",
-      "<em>IRT models</em> tab has not been fit yet for this dataset. ",
-      "Open the <em>IRT models</em> tab once to fit it, or switch the ",
-      "predictor to total score or standardized total score.",
+      "IRT θ is not available — neither the dichotomous nor the ",
+      "polytomous IRT model in the <em>IRT models</em> tab has been fit ",
+      "yet for this dataset. Open the <em>IRT models</em> tab once to fit ",
+      "the appropriate model, or switch the predictor to total score or ",
+      "standardized total score.",
       "</div>")))
   }
   HTML("")
