@@ -393,7 +393,7 @@ report_DIF_ord_plot <- reactive({
   flagged <- fit$DIFitems
   if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
   p <- tryCatch(
-    plotDIFOrdExpected(fit, item = flagged[1], num.groups = 3),
+    ShinyItemAnalysisPoly::plotDIFOrdExpected(fit, item = flagged[1], num.groups = 3),
     error = function(e) NULL
   )
   if (inherits(p, "ggplot")) p else ""
@@ -417,7 +417,7 @@ report_DIF_adj_plot <- reactive({
   flagged <- fit$DIFitems
   if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
   p <- tryCatch(
-    plotDIFOrdExpected(fit, item = flagged[1], num.groups = 3),
+    ShinyItemAnalysisPoly::plotDIFOrdExpected(fit, item = flagged[1], num.groups = 3),
     error = function(e) NULL
   )
   if (inherits(p, "ggplot")) p else ""

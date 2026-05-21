@@ -2443,7 +2443,7 @@ DIF_logistic_items_plot <- reactive({
   show_obs <- isTRUE(input$DIF_logistic_items_show_observed)
   ng <- if (show_obs) input$DIF_logistic_observed_groups else NULL
 
-  g <- plotDIFLogistic(fit,
+  g <- ShinyItemAnalysisPoly::plotDIFLogistic(fit,
     item = item, match = match, item.name = item_names()[item],
     Data = data, group = group,
     draw.empirical = show_obs, num.groups = ng,
@@ -2562,7 +2562,7 @@ report_DIF_logistic_plot <- reactive({
     graflist <- vector("list", length = length(fit$DIFitems))
     i <- 1
     for (item in fit$DIFitems) {
-      g <- plotDIFLogistic(fit,
+      g <- ShinyItemAnalysisPoly::plotDIFLogistic(fit,
         item = item,
         item.name = item_names()[item],
         Data = data, group = group
@@ -5803,7 +5803,7 @@ DIF_cumulative_items_plot_expected <- reactive({
     "Matching criterion"
   )
 
-  g <- plotDIFOrdExpected(
+  g <- ShinyItemAnalysisPoly::plotDIFOrdExpected(
     fit,
     item = item,
     item.name = item_names()[item],
@@ -6418,7 +6418,7 @@ DIF_adjacent_items_plot <- reactive({
     "Matching criterion"
   )
 
-  g <- plotDIFOrdExpected(
+  g <- ShinyItemAnalysisPoly::plotDIFOrdExpected(
     fit,
     item = item,
     item.name = item_names()[item],
