@@ -210,6 +210,7 @@ plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,
           colour = .data$Group, fill = .data$Group, size = .data$Count),
       alpha = 0.5, shape = 21
     ) +
+      scale_size_continuous(breaks = .size_legend_breaks(emp_df$Count)) +
       guides(size = guide_legend(title = "Count", order = 1),
              fill = guide_legend(title = "Group", order = 2))
   }

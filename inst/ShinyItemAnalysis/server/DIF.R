@@ -2477,22 +2477,38 @@ output$DIF_logistic_items_plot <- renderPlotly({
     "Matching criterion"
   )
 
+  # Rebuild legend: rename traces to clean group labels, hide marker traces
+  # from the legend (they already share a colour with the line) so plotly
+  # shows two horizontal entries: "Reference" and "Focal".
+  group_labels <- c("Reference", "Focal")
   for (i in seq_along(p$x$data)) {
-    txt <- p$x$data[[i]]$text
-    if (is.null(txt)) next
-    txt <- gsub("gr1", "Reference", txt)
-    txt <- gsub("gr2", "Focal", txt)
-    txt <- gsub("Score", match_label, txt)
-    txt <- gsub("Probability", "Probability of correct answer", txt)
-    txt <- lapply(strsplit(txt, split = "<br />"), unique)
-    p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
+    d <- p$x$data[[i]]
+    nm <- d$name %||% ""
+    grp <- if (grepl("gr1", nm)) group_labels[1] else if (grepl("gr2", nm)) group_labels[2] else nm
+    is_line <- identical(d$mode, "lines") || identical(d$mode, "lines+markers")
+    p$x$data[[i]]$name <- grp
+    p$x$data[[i]]$legendgroup <- grp
+    p$x$data[[i]]$showlegend <- is_line
+
+    txt <- d$text
+    if (!is.null(txt)) {
+      txt <- gsub("gr1", group_labels[1], txt)
+      txt <- gsub("gr2", group_labels[2], txt)
+      txt <- gsub("Score", match_label, txt)
+      txt <- gsub("Probability", "Probability of correct answer", txt)
+      txt <- lapply(strsplit(txt, split = "<br />"), unique)
+      p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
+    }
   }
 
   p$elementId <- NULL
   p |>
-    plotly::layout(legend = list(x = 0.01, y = 0.99, xanchor = "left",
-                                  yanchor = "top",
-                                  bgcolor = "rgba(255,255,255,0.6)")) |>
+    plotly::layout(
+      legend = list(orientation = "h", x = 0.01, y = 0.99,
+                    xanchor = "left", yanchor = "top",
+                    bgcolor = "rgba(255,255,255,0.6)",
+                    title = list(text = ""))
+    ) |>
     plotly::config(displayModeBar = FALSE)
 })
 
@@ -5863,22 +5879,35 @@ output$DIF_cumulative_items_plot_expected <- renderPlotly({
     "Matching criterion"
   )
 
+  group_labels <- c("Reference", "Focal")
   for (i in seq_along(p$x$data)) {
-    txt <- p$x$data[[i]]$text
-    if (is.null(txt)) next
-    txt <- gsub("gr1", "Reference", txt)
-    txt <- gsub("gr2", "Focal", txt)
-    txt <- gsub("Match", match_label, txt)
-    txt <- gsub("Expected", "Expected item score", txt)
-    txt <- lapply(strsplit(txt, split = "<br />"), unique)
-    p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
+    d <- p$x$data[[i]]
+    nm <- d$name %||% ""
+    grp <- if (grepl("gr1", nm)) group_labels[1] else if (grepl("gr2", nm)) group_labels[2] else nm
+    is_line <- identical(d$mode, "lines") || identical(d$mode, "lines+markers")
+    p$x$data[[i]]$name <- grp
+    p$x$data[[i]]$legendgroup <- grp
+    p$x$data[[i]]$showlegend <- is_line
+
+    txt <- d$text
+    if (!is.null(txt)) {
+      txt <- gsub("gr1", group_labels[1], txt)
+      txt <- gsub("gr2", group_labels[2], txt)
+      txt <- gsub("Match", match_label, txt)
+      txt <- gsub("Expected", "Expected item score", txt)
+      txt <- lapply(strsplit(txt, split = "<br />"), unique)
+      p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
+    }
   }
 
   p$elementId <- NULL
   p |>
-    plotly::layout(legend = list(x = 0.01, y = 0.99, xanchor = "left",
-                                  yanchor = "top",
-                                  bgcolor = "rgba(255,255,255,0.6)")) |>
+    plotly::layout(
+      legend = list(orientation = "h", x = 0.01, y = 0.99,
+                    xanchor = "left", yanchor = "top",
+                    bgcolor = "rgba(255,255,255,0.6)",
+                    title = list(text = ""))
+    ) |>
     plotly::config(displayModeBar = FALSE)
 })
 

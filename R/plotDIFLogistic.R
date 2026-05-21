@@ -85,8 +85,8 @@
 #' @seealso [difR::difLogistic()], [ggplot2::ggplot()]
 #'
 #' @importFrom ggplot2 stat_function scale_colour_manual scale_linetype_manual
-#'   guides guide_legend ggtitle
-#' @importFrom stats quantile
+#'   guides guide_legend ggtitle scale_size_continuous
+#' @importFrom stats quantile median
 #'
 #' @export
 plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference", "Focal"),
@@ -301,6 +301,7 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
         aes(x = .data$Score, y = .data$Probability, colour = .data$Group, fill = .data$Group, size = .data$Count),
         alpha = alpha, shape = shape
       ) +
+      scale_size_continuous(breaks = .size_legend_breaks(empirical$Count)) +
       guides(size = guide_legend(title = "Count", order = 1)) +
       scale_fill_manual(
         values = col,
