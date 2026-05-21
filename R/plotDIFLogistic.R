@@ -15,9 +15,14 @@
 #'   length as number of observations in `Data`. See **Details**.
 #' @param draw.empirical logical: whether empirical probabilities should be
 #'   calculated and plotted. Default value is `TRUE`.
-#'
-#' @usage plotDIFLogistic(x, item = 1, item.name, group.names = c("Reference",
-#'   "Focal"), Data, group, match, draw.empirical = TRUE)
+#' @param num.groups integer or `NULL`: number of equal-frequency bins to use
+#'   when aggregating the empirical proportions. The default `NULL` preserves
+#'   the legacy behaviour for `match = "score"` (one bin per unique total
+#'   score). For continuous matching variables (`"zscore"`, user-supplied
+#'   numeric vectors such as IRT \eqn{\theta} or WLE estimates) it defaults to
+#'   `3`. Ignored when `draw.empirical = FALSE`.
+#' @param match.name character: label for the x-axis. If missing, an
+#'   appropriate label is chosen from `match`.
 #'
 #' @details This function plots characteristic curves of 2PL logistic DIF model
 #' fitted by `difLogistic()` function from difR package using ggplot2.
@@ -28,6 +33,14 @@
 #' instead of the total score or the standardized score, `match` needs to
 #' be a numeric vector of the same the same length as the number of observations
 #' in `Data`.
+#'
+#' When the matching variable is continuous (anything other than a raw integer
+#' total score), empirical proportions are aggregated into `num.groups`
+#' equal-frequency bins on the matching scale, separately within each group.
+#' Earlier versions of this function grouped by the exact value of the
+#' matching variable, which produced a noisy point cloud when the matching
+#' variable was continuous (e.g. a Rasch WLE \eqn{\theta}). Pass `num.groups`
+#' explicitly to override the default.
 #'
 #' @author
 #' Adela Hladka \cr
@@ -60,14 +73,23 @@
 #'
 #' # Not plotting empirical probabilities
 #' plotDIFLogistic(x, item = 1, draw.empirical = FALSE)
+#'
+#' # Matching on Rasch WLE theta with five equal-frequency bins
+#' theta <- as.numeric(mirt::fscores(mirt::mirt(Data, 1, "Rasch", verbose = FALSE),
+#'                                    method = "WLE"))
+#' xt <- difLogistic(Data, group, focal.name = 1, match = theta)
+#' plotDIFLogistic(xt, item = 1, Data = Data, group = group,
+#'                 match = theta, num.groups = 5)
 #' @seealso [difR::difLogistic()], [ggplot2::ggplot()]
 #'
 #' @importFrom ggplot2 stat_function scale_colour_manual scale_linetype_manual
 #'   guides guide_legend ggtitle
+#' @importFrom stats quantile
 #'
 #' @export
 plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference", "Focal"),
-                            Data, group, match, draw.empirical = TRUE) {
+                            Data, group, match, draw.empirical = TRUE,
+                            num.groups = NULL, match.name) {
   res <- x
   i <- ifelse(is.character(item) | is.factor(item),
     (1:length(res$names))[res$names == item],
@@ -89,10 +111,10 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
   coef <- res$logitPar[i, ]
 
   if (missing(Data) & draw.empirical) {
-    stop("'Data' needs to be specified! ", .call = FALSE)
+    stop("'Data' needs to be specified! ", call. = FALSE)
   }
   if (missing(group) & draw.empirical) {
-    stop("'group' needs to be specified! ", .call = FALSE)
+    stop("'group' needs to be specified! ", call. = FALSE)
   }
 
   if (missing(match)) {
@@ -105,25 +127,32 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
     ANCHOR <- c(1:nrow(res$logitPar))
   }
 
-  if (match[1] == "score") {
+  # Resolve matching criterion ------------------------------------------------
+  match_is_integer_score <- FALSE
+  if (length(match) == 1 && match[1] == "score") {
     xlab <- "Total score"
     if (draw.empirical) {
       MATCHCRIT <- rowSums(Data[, ANCHOR])
     } else {
       MATCHCRIT <- c(0, nrow(res$logitPar))
     }
-  } else if (match[1] == "zscore") {
+    match_is_integer_score <- TRUE
+  } else if (length(match) == 1 && match[1] == "zscore") {
     xlab <- "Standardized total score"
     if (draw.empirical) {
-      MATCHCRIT <- scale(apply(as.data.frame(Data[, ANCHOR]), 1, sum))
+      MATCHCRIT <- as.numeric(scale(apply(as.data.frame(Data[, ANCHOR]), 1, sum)))
     } else {
       MATCHCRIT <- c(0, nrow(res$logitPar))
     }
   } else if (length(match) != nrow(Data)) {
-    stop("'match' needs to be either 'score', 'zscore' or numeric vector of the same length as number of observations in 'Data'. ", .call = FALSE)
+    stop("'match' needs to be either 'score', 'zscore' or numeric vector of the same length as number of observations in 'Data'. ",
+         call. = FALSE)
   } else {
-    MATCHCRIT <- match
-    xlab <- "Observed score"
+    MATCHCRIT <- as.numeric(match)
+    xlab <- "Matching criterion"
+  }
+  if (!missing(match.name) && !is.null(match.name)) {
+    xlab <- match.name
   }
 
   LR_plot <- function(x, group, b0, b1, b2, b3) {
@@ -131,23 +160,70 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
   }
 
   if (draw.empirical) {
+    # Resolve the number of bins. NULL means "preserve legacy behaviour for
+    # integer total scores", otherwise default to 3 equal-frequency bins.
+    use_quantile_bins <- !match_is_integer_score
+    if (is.null(num.groups)) {
+      n_bins <- if (match_is_integer_score) NA_integer_ else 3L
+    } else {
+      n_bins <- as.integer(num.groups)
+      if (is.na(n_bins) || n_bins < 2L) {
+        stop("'num.groups' must be an integer >= 2.", call. = FALSE)
+      }
+      use_quantile_bins <- TRUE
+    }
+
+    bin_props <- function(match_g, y_g) {
+      if (length(match_g) == 0L) {
+        return(data.frame(Score = numeric(0), Probability = numeric(0), Count = integer(0)))
+      }
+      if (!use_quantile_bins) {
+        lv <- as.factor(match_g)
+        data.frame(
+          Score = as.numeric(levels(lv)),
+          Probability = as.numeric(tapply(y_g, lv, mean, na.rm = TRUE)),
+          Count = as.integer(table(lv))
+        )
+      } else {
+        rng <- range(match_g, na.rm = TRUE)
+        if (rng[1] == rng[2]) {
+          # all values equal -> single bin
+          return(data.frame(
+            Score = rng[1],
+            Probability = mean(y_g, na.rm = TRUE),
+            Count = length(match_g)
+          ))
+        }
+        brks <- unique(stats::quantile(match_g,
+                                       probs = seq(0, 1, length.out = n_bins + 1L),
+                                       na.rm = TRUE, type = 7))
+        # If the variable has many ties, quantile() can return duplicate
+        # breaks; collapse them to keep cut() happy at the cost of fewer bins.
+        if (length(brks) < 3L) {
+          return(data.frame(
+            Score = mean(match_g, na.rm = TRUE),
+            Probability = mean(y_g, na.rm = TRUE),
+            Count = length(match_g)
+          ))
+        }
+        bins <- cut(match_g, breaks = brks, include.lowest = TRUE)
+        data.frame(
+          Score = as.numeric(tapply(match_g, bins, mean, na.rm = TRUE)),
+          Probability = as.numeric(tapply(y_g, bins, mean, na.rm = TRUE)),
+          Count = as.integer(table(bins))
+        )
+      }
+    }
+
     score_R <- MATCHCRIT[group == 0]
     score_F <- MATCHCRIT[group == 1]
-
-    empirical_R <- data.frame(
-      score = as.numeric(levels(as.factor(score_R))),
-      probability = tapply(Data[group == 0, i], as.factor(score_R), mean)
+    item_y <- Data[, i]
+    emp_R <- bin_props(score_R, item_y[group == 0])
+    emp_F <- bin_props(score_F, item_y[group == 1])
+    empirical <- rbind(
+      cbind(emp_R, Group = "gr1"),
+      cbind(emp_F, Group = "gr2")
     )
-    empirical_F <- data.frame(
-      score = as.numeric(levels(as.factor(score_F))),
-      probability = tapply(Data[group == 1, i], as.factor(score_F), mean)
-    )
-    empirical <- data.frame(rbind(
-      cbind(empirical_R, Group = "gr1"),
-      cbind(empirical_F, Group = "gr2")
-    ))
-    empirical$size <- c(table(score_R), table(score_F))
-    colnames(empirical) <- c("Score", "Probability", "Group", "Count")
   }
 
   max_score <- max(MATCHCRIT, na.rm = TRUE) + 0.1
@@ -171,7 +247,7 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
         b2 = coef[3],
         b3 = coef[4]
       ),
-      size = size, geom = "line"
+      linewidth = size, geom = "line"
     ) +
     stat_function(aes(colour = "gr2", linetype = "gr2"),
       fun = LR_plot,
@@ -182,7 +258,7 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
         b2 = coef[3],
         b3 = coef[4]
       ),
-      size = size, geom = "line"
+      linewidth = size, geom = "line"
     ) +
     ### style
     scale_colour_manual(
@@ -211,7 +287,7 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
     ) +
     ggtitle(item.name)
 
-  if (draw.empirical) {
+  if (draw.empirical && nrow(empirical) > 0L) {
     g <- g +
       ### points
       geom_point(

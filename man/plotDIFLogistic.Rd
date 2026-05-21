@@ -4,8 +4,18 @@
 \alias{plotDIFLogistic}
 \title{Function for characteristic curve of 2PL logistic DIF model}
 \usage{
-plotDIFLogistic(x, item = 1, item.name, group.names = c("Reference",
-  "Focal"), Data, group, match, draw.empirical = TRUE)
+plotDIFLogistic(
+  x,
+  item = 1,
+  item.name,
+  group.names = c("Reference", "Focal"),
+  Data,
+  group,
+  match,
+  draw.empirical = TRUE,
+  num.groups = NULL,
+  match.name
+)
 }
 \arguments{
 \item{x}{an object of \code{"Logistic"} class. See \strong{Details}.}
@@ -26,6 +36,16 @@ length as number of observations in \code{Data}. See \strong{Details}.}
 
 \item{draw.empirical}{logical: whether empirical probabilities should be
 calculated and plotted. Default value is \code{TRUE}.}
+
+\item{num.groups}{integer or \code{NULL}: number of equal-frequency bins to use
+when aggregating the empirical proportions. The default \code{NULL} preserves
+the legacy behaviour for \code{match = "score"} (one bin per unique total
+score). For continuous matching variables (\code{"zscore"}, user-supplied
+numeric vectors such as IRT \eqn{\theta} or WLE estimates) it defaults to
+\code{3}. Ignored when \code{draw.empirical = FALSE}.}
+
+\item{match.name}{character: label for the x-axis. If missing, an
+appropriate label is chosen from \code{match}.}
 }
 \description{
 Plots characteristic curve of 2PL logistic DIF model
@@ -40,6 +60,14 @@ for reference and focal group. \code{match} should be the same as in
 instead of the total score or the standardized score, \code{match} needs to
 be a numeric vector of the same the same length as the number of observations
 in \code{Data}.
+
+When the matching variable is continuous (anything other than a raw integer
+total score), empirical proportions are aggregated into \code{num.groups}
+equal-frequency bins on the matching scale, separately within each group.
+Earlier versions of this function grouped by the exact value of the
+matching variable, which produced a noisy point cloud when the matching
+variable was continuous (e.g. a Rasch WLE \eqn{\theta}). Pass \code{num.groups}
+explicitly to override the default.
 }
 \examples{
 # loading libraries
@@ -63,6 +91,13 @@ plotDIFLogistic(x, item = 1, group.names = c("Group 1", "Group 2"), Data = Data,
 
 # Not plotting empirical probabilities
 plotDIFLogistic(x, item = 1, draw.empirical = FALSE)
+
+# Matching on Rasch WLE theta with five equal-frequency bins
+theta <- as.numeric(mirt::fscores(mirt::mirt(Data, 1, "Rasch", verbose = FALSE),
+                                   method = "WLE"))
+xt <- difLogistic(Data, group, focal.name = 1, match = theta)
+plotDIFLogistic(xt, item = 1, Data = Data, group = group,
+                match = theta, num.groups = 5)
 }
 \seealso{
 \code{\link[difR:difLogistic]{difR::difLogistic()}}, \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}

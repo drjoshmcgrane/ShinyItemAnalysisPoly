@@ -236,6 +236,27 @@ ui_DIF_logistic <- tabPanel(
       h4("Plot with estimated DIF logistic curve"),
       p("Points represent empirical probabilities of the correct answer with respect to the matching criterion. Their size is determined
         by the count of respondents at a given level of the matching criterion, split by group membership."),
+      fluidRow(
+        column(
+          3,
+          checkboxInput(
+            inputId = "DIF_logistic_items_show_observed",
+            label = "Show observed proportions",
+            value = TRUE
+          )
+        ),
+        column(
+          2,
+          conditionalPanel(
+            condition = "input.DIF_logistic_items_show_observed == true",
+            numericInput(
+              inputId = "DIF_logistic_observed_groups",
+              label = "Number of groups",
+              value = 3, min = 2, max = 20, step = 1
+            )
+          )
+        )
+      ),
       plotlyOutput("DIF_logistic_items_plot"),
       downloadButton("DIF_logistic_items_plot_download", label = "Download figure"),
       h4("Equation"),

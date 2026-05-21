@@ -1,5 +1,5 @@
 library(difR)
-library(ShinyItemAnalysis)
+library(ShinyItemAnalysisPoly)
 
 # loading data
 data(GMAT, package = "difNLR")
@@ -12,8 +12,10 @@ group <- GMAT[, "group"]
   type = "both", p.adjust.method = "none", purify = FALSE
 ))
 
-# plot of characteristic curve for item 1
-plotDIFLogistic(fit, item = 1, Data = data, group = group)
+# plot of characteristic curve for item 1 (3 equal-frequency bins for the
+# observed proportions; pass draw.empirical = FALSE to suppress the points)
+plotDIFLogistic(fit, item = 1, Data = data, group = group,
+                num.groups = 3, match.name = "Total score")
 
 # estimated coefficients for item 1
 fit$logitPar[1, ]

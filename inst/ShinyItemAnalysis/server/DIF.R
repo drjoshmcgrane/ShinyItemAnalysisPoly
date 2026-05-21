@@ -2431,9 +2431,23 @@ DIF_logistic_items_plot <- reactive({
 
   fit <- DIF_logistic_model()
 
+  match_label <- switch(input$DIF_logistic_items_matching,
+    "uploaded"  = "Uploaded match",
+    "zuploaded" = "Uploaded standardized match",
+    "zscore"    = "Standardized total score",
+    "score"     = "Total score",
+    "theta"     = "IRT \u03B8",
+    "Matching criterion"
+  )
+
+  show_obs <- isTRUE(input$DIF_logistic_items_show_observed)
+  ng <- if (show_obs) input$DIF_logistic_observed_groups else NULL
+
   g <- plotDIFLogistic(fit,
     item = item, match = match, item.name = item_names()[item],
-    Data = data, group = group
+    Data = data, group = group,
+    draw.empirical = show_obs, num.groups = ng,
+    match.name = match_label
   )
   g
 })
@@ -2442,38 +2456,24 @@ output$DIF_logistic_items_plot <- renderPlotly({
   g <- DIF_logistic_items_plot()
   p <- ggplotly(g)
 
-  p$x$data[[1]]$text <- paste0(
-    "Group: Reference", "<br />",
-    "Match: ", p$x$data[[1]]$x, "<br />",
-    "Probability: ", p$x$data[[1]]$y
+  match_label <- switch(input$DIF_logistic_items_matching,
+    "uploaded"  = "Uploaded match",
+    "zuploaded" = "Uploaded standardized match",
+    "zscore"    = "Standardized total score",
+    "score"     = "Total score",
+    "theta"     = "IRT \u03B8",
+    "Matching criterion"
   )
-  p$x$data[[2]]$text <- paste0(
-    "Group: Focal", "<br />",
-    "Match: ", p$x$data[[2]]$x, "<br />",
-    "Probability: ", p$x$data[[2]]$y
-  )
-  p$x$data[[3]]$text <- gsub("gr1", "Reference", p$x$data[[3]]$text)
-  p$x$data[[3]]$text <- gsub("Probability", "Empirical probability", p$x$data[[3]]$text)
-  p$x$data[[4]]$text <- gsub("gr2", "Focal", p$x$data[[4]]$text)
-  p$x$data[[4]]$text <- gsub("Probability", "Empirical probability", p$x$data[[4]]$text)
 
-  if (input$DIF_logistic_items_matching == "uploaded") {
-    match <- "Uploaded match"
-  } else if (input$DIF_logistic_items_matching == "zuploaded") {
-    match <- "Uploaded standardized match"
-  } else if (input$DIF_logistic_items_matching == "zscore") {
-    match <- "Z-score"
-  } else if (input$DIF_logistic_items_matching == "score") {
-    match <- "Score"
-  } else if (input$DIF_logistic_items_matching == "theta") {
-    match <- "IRT \u03B8"
-  }
-
-  for (i in 1:length(p$x$data)) {
-    text <- gsub("Match", match, p$x$data[[i]]$text)
-    text <- lapply(strsplit(text, split = "<br />"), unique)
-    text <- unlist(lapply(text, paste, collapse = "<br />"))
-    p$x$data[[i]]$text <- text
+  for (i in seq_along(p$x$data)) {
+    txt <- p$x$data[[i]]$text
+    if (is.null(txt)) next
+    txt <- gsub("gr1", "Reference", txt)
+    txt <- gsub("gr2", "Focal", txt)
+    txt <- gsub("Score", match_label, txt)
+    txt <- gsub("Probability", "Probability of correct answer", txt)
+    txt <- lapply(strsplit(txt, split = "<br />"), unique)
+    p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
   }
 
   p$elementId <- NULL
@@ -5786,74 +5786,31 @@ output$DIF_cumulative_items_na_alert <- renderUI({
   HTML(txt)
 })
 
-# ** Plot - cumulative ####
-DIF_cumulative_items_plot_cumulative <- reactive({
+# ** Plot - expected item score ####
+DIF_cumulative_items_plot_expected <- reactive({
   fit <- DIF_cumulative_method()
   item <- input$DIF_cumulative_items
 
-  g <- plot(fit, item = item, plot.type = "cumulative")[[1]] +
-    theme_app() +
-    ggtitle(item_names()[item]) +
-    theme(
-      legend.box.just = "top",
-      legend.justification = c("right", "bottom"),
-      legend.position = "inside",
-      legend.position.inside = c(0.98, 0.02),
-      legend.box = "horizontal",
-      legend.margin = margin(0, 0, 0, 0, unit = "cm")
-    )
-  g
-})
+  show_obs <- isTRUE(input$DIF_cumulative_items_show_observed)
+  ng <- if (show_obs) input$DIF_cumulative_observed_groups else 3L
 
-output$DIF_cumulative_items_plot_cumulative <- renderPlotly({
-  g <- DIF_cumulative_items_plot_cumulative()
-  p <- ggplotly(g)
+  match_label <- switch(input$DIF_cumulative_items_matching,
+    "uploaded"  = "Uploaded match",
+    "zuploaded" = "Uploaded standardized match",
+    "zscore"    = "Standardized total score",
+    "score"     = "Total score",
+    "theta"     = "IRT θ",
+    "Matching criterion"
+  )
 
-  for (i in 1:length(p$x$data)) {
-    text <- p$x$data[[i]]$text
-    text <- gsub("size", "Count", text)
-    text <- gsub("category", "Category", text)
-    text <- gsub("probability", "Probability", text)
-    text <- gsub("matching", "Z-score", text)
-    p$x$data[[i]]$text <- text
-  }
-
-  for (i in 1:length(p$x$data)) {
-    text <- p$x$data[[i]]$text
-    text <- lapply(strsplit(text, split = "<br />"), unique)
-    text <- unlist(lapply(text, paste, collapse = "<br />"))
-    p$x$data[[i]]$text <- text
-  }
-
-  p$elementId <- NULL
-  hide_legend(p) |> plotly::config(displayModeBar = FALSE)
-})
-
-# ** Download plot - cumulative ####
-output$DIF_cumulative_items_plot_cumulative_download <- downloadHandler(
-  filename = function() {
-    paste0("fig_DIF_cumulative_cumulative_", item_names()[input$DIF_cumulative_items], ".png")
-  },
-  content = function(file) {
-    ggsave(file,
-      plot = DIF_cumulative_items_plot_cumulative() +
-        theme(text = element_text(size = setting_figures$text_size)),
-      device = "png",
-      height = setting_figures$height,
-      width = setting_figures$width,
-      dpi = setting_figures$dpi
-    )
-  }
-)
-
-# ** Plot - category ####
-DIF_cumulative_items_plot_category <- reactive({
-  fit <- DIF_cumulative_method()
-  item <- input$DIF_cumulative_items
-
-  g <- plot(fit, item = item, plot.type = "category")[[1]] +
-    theme_app() +
-    ggtitle(item_names()[item]) +
+  g <- plotDIFOrdExpected(
+    fit,
+    item = item,
+    item.name = item_names()[item],
+    match.name = match_label,
+    draw.empirical = show_obs,
+    num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng)
+  ) +
     theme(
       legend.box.just = "top",
       legend.justification = c("left", "top"),
@@ -5865,38 +5822,42 @@ DIF_cumulative_items_plot_category <- reactive({
   g
 })
 
-output$DIF_cumulative_items_plot_category <- renderPlotly({
-  g <- DIF_cumulative_items_plot_category()
+output$DIF_cumulative_items_plot_expected <- renderPlotly({
+  g <- DIF_cumulative_items_plot_expected()
   p <- ggplotly(g)
 
-  for (i in 1:length(p$x$data)) {
-    text <- p$x$data[[i]]$text
-    text <- gsub("size", "Count", text)
-    text <- gsub("category", "Category", text)
-    text <- gsub("probability", "Probability", text)
-    text <- gsub("matching", "Z-score", text)
-    p$x$data[[i]]$text <- text
-  }
+  match_label <- switch(input$DIF_cumulative_items_matching,
+    "uploaded"  = "Uploaded match",
+    "zuploaded" = "Uploaded standardized match",
+    "zscore"    = "Standardized total score",
+    "score"     = "Total score",
+    "theta"     = "IRT θ",
+    "Matching criterion"
+  )
 
-  for (i in 1:length(p$x$data)) {
-    text <- p$x$data[[i]]$text
-    text <- lapply(strsplit(text, split = "<br />"), unique)
-    text <- unlist(lapply(text, paste, collapse = "<br />"))
-    p$x$data[[i]]$text <- text
+  for (i in seq_along(p$x$data)) {
+    txt <- p$x$data[[i]]$text
+    if (is.null(txt)) next
+    txt <- gsub("gr1", "Reference", txt)
+    txt <- gsub("gr2", "Focal", txt)
+    txt <- gsub("Match", match_label, txt)
+    txt <- gsub("Expected", "Expected item score", txt)
+    txt <- lapply(strsplit(txt, split = "<br />"), unique)
+    p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
   }
 
   p$elementId <- NULL
   hide_legend(p) |> plotly::config(displayModeBar = FALSE)
 })
 
-# ** Download plot - category ####
-output$DIF_cumulative_items_plot_category_download <- downloadHandler(
+# ** Download plot - expected item score ####
+output$DIF_cumulative_items_plot_expected_download <- downloadHandler(
   filename = function() {
-    paste0("fig_DIF_cumulative_category_", item_names()[input$DIF_cumulative_items], ".png")
+    paste0("fig_DIF_cumulative_expected_", item_names()[input$DIF_cumulative_items], ".png")
   },
   content = function(file) {
     ggsave(file,
-      plot = DIF_cumulative_items_plot_category() +
+      plot = DIF_cumulative_items_plot_expected() +
         theme(text = element_text(size = setting_figures$text_size)),
       device = "png",
       height = setting_figures$height,
@@ -6440,14 +6401,31 @@ output$DIF_adjacent_items_na_alert <- renderUI({
   HTML(txt)
 })
 
-# ** Plot ####
+# ** Plot - expected item score ####
 DIF_adjacent_items_plot <- reactive({
   fit <- DIF_adjacent_model()
   item <- input$DIF_adjacent_items
 
-  g <- plot(fit, item = item)[[1]] +
-    theme_app() +
-    ggtitle(item_names()[item]) +
+  show_obs <- isTRUE(input$DIF_adjacent_items_show_observed)
+  ng <- if (show_obs) input$DIF_adjacent_observed_groups else 3L
+
+  match_label <- switch(input$DIF_adjacent_items_matching,
+    "uploaded"  = "Uploaded match",
+    "zuploaded" = "Uploaded standardized match",
+    "zscore"    = "Standardized total score",
+    "score"     = "Total score",
+    "theta"     = "IRT θ",
+    "Matching criterion"
+  )
+
+  g <- plotDIFOrdExpected(
+    fit,
+    item = item,
+    item.name = item_names()[item],
+    match.name = match_label,
+    draw.empirical = show_obs,
+    num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng)
+  ) +
     theme(
       legend.box.just = "top",
       legend.justification = c("left", "top"),
@@ -6463,20 +6441,24 @@ output$DIF_adjacent_items_plot <- renderPlotly({
   g <- DIF_adjacent_items_plot()
   p <- ggplotly(g)
 
-  for (i in 1:length(p$x$data)) {
-    text <- p$x$data[[i]]$text
-    text <- gsub("size", "Count", text)
-    text <- gsub("category", "Category", text)
-    text <- gsub("probability", "Probability", text)
-    text <- gsub("matching", "Z-score", text)
-    p$x$data[[i]]$text <- text
-  }
+  match_label <- switch(input$DIF_adjacent_items_matching,
+    "uploaded"  = "Uploaded match",
+    "zuploaded" = "Uploaded standardized match",
+    "zscore"    = "Standardized total score",
+    "score"     = "Total score",
+    "theta"     = "IRT θ",
+    "Matching criterion"
+  )
 
-  for (i in 1:length(p$x$data)) {
-    text <- p$x$data[[i]]$text
-    text <- lapply(strsplit(text, split = "<br />"), unique)
-    text <- unlist(lapply(text, paste, collapse = "<br />"))
-    p$x$data[[i]]$text <- text
+  for (i in seq_along(p$x$data)) {
+    txt <- p$x$data[[i]]$text
+    if (is.null(txt)) next
+    txt <- gsub("gr1", "Reference", txt)
+    txt <- gsub("gr2", "Focal", txt)
+    txt <- gsub("Match", match_label, txt)
+    txt <- gsub("Expected", "Expected item score", txt)
+    txt <- lapply(strsplit(txt, split = "<br />"), unique)
+    p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
   }
 
   p$elementId <- NULL

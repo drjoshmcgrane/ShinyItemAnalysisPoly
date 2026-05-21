@@ -167,7 +167,7 @@ school admission tests. In: Proceedings of the 2017 Federated Conference on
 Computer Science and Information Systems.
 }
 \seealso{
-\code{\link[=gDiscrim]{gDiscrim()}} for calculation of generalized ULI \cr
+\code{\link[ShinyItemAnalysis:gDiscrim]{ShinyItemAnalysis::gDiscrim()}} for calculation of generalized ULI \cr
 \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} for general function to plot a \code{"ggplot"} object
 }
 \author{

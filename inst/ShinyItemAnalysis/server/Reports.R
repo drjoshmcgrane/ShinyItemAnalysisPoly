@@ -393,10 +393,9 @@ report_DIF_ord_plot <- reactive({
   flagged <- fit$DIFitems
   if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
   p <- tryCatch(
-    plot(fit, item = flagged[1], plot.type = "cumulative"),
+    plotDIFOrdExpected(fit, item = flagged[1], num.groups = 3),
     error = function(e) NULL
   )
-  if (is.list(p) && !inherits(p, "ggplot")) p <- p[[1]]
   if (inherits(p, "ggplot")) p else ""
 })
 
@@ -418,10 +417,9 @@ report_DIF_adj_plot <- reactive({
   flagged <- fit$DIFitems
   if (is.character(flagged) && flagged[1] == "No DIF item detected") return("")
   p <- tryCatch(
-    plot(fit, item = flagged[1]),
+    plotDIFOrdExpected(fit, item = flagged[1], num.groups = 3),
     error = function(e) NULL
   )
-  if (is.list(p) && !inherits(p, "ggplot")) p <- p[[1]]
   if (inherits(p, "ggplot")) p else ""
 })
 

@@ -196,9 +196,29 @@ ui_DIF_adjacent <- tabPanel(
         )
       ),
       uiOutput("DIF_adjacent_items_na_alert"),
-      h4("Plot with estimated DIF curves"),
-      p("Points represent proportion of obtained score with respect to the matching criterion. Their size is determined
-        by the count of respondents at a given level of the matching criterion, split by group membership."),
+      h4("Plot with estimated expected item score curves"),
+      p("Model-implied expected item score for each group as a function of the matching criterion. Points are mean observed item scores within equal-frequency bins of the matching variable; their size is determined by the number of respondents in each bin."),
+      fluidRow(
+        column(
+          3,
+          checkboxInput(
+            inputId = "DIF_adjacent_items_show_observed",
+            label = "Show observed proportions",
+            value = TRUE
+          )
+        ),
+        column(
+          2,
+          conditionalPanel(
+            condition = "input.DIF_adjacent_items_show_observed == true",
+            numericInput(
+              inputId = "DIF_adjacent_observed_groups",
+              label = "Number of groups",
+              value = 3, min = 2, max = 20, step = 1
+            )
+          )
+        )
+      ),
       plotlyOutput("DIF_adjacent_items_plot"),
       downloadButton("DIF_adjacent_items_plot_download", label = "Download figure"),
       h4("Equation"),
