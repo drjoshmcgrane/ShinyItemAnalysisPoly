@@ -217,6 +217,28 @@ ui_DIF_adjacent <- tabPanel(
               value = 3, min = 2, max = 20, step = 1
             )
           )
+        ),
+        column(
+          3,
+          textInput(
+            inputId = "DIF_adjacent_items_xlab",
+            label = "X-axis label",
+            value = "", placeholder = "(auto)"
+          )
+        ),
+        column(
+          2,
+          numericInput(
+            inputId = "DIF_adjacent_items_xmin",
+            label = "X min", value = NA, step = 0.5
+          )
+        ),
+        column(
+          2,
+          numericInput(
+            inputId = "DIF_adjacent_items_xmax",
+            label = "X max", value = NA, step = 0.5
+          )
         )
       ),
       plotlyOutput("DIF_adjacent_items_plot"),

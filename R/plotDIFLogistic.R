@@ -23,6 +23,8 @@
 #'   `3`. Ignored when `draw.empirical = FALSE`.
 #' @param match.name character: label for the x-axis. If missing, an
 #'   appropriate label is chosen from `match`.
+#' @param xlim numeric vector of length two: optional x-axis range. The
+#'   default `NULL` uses the data range (padded by 0.1 logits on each side).
 #'
 #' @details This function plots characteristic curves of 2PL logistic DIF model
 #' fitted by `difLogistic()` function from difR package using ggplot2.
@@ -89,7 +91,7 @@
 #' @export
 plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference", "Focal"),
                             Data, group, match, draw.empirical = TRUE,
-                            num.groups = NULL, match.name) {
+                            num.groups = NULL, match.name, xlim = NULL) {
   res <- x
   i <- ifelse(is.character(item) | is.factor(item),
     (1:length(res$names))[res$names == item],
@@ -226,8 +228,12 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
     )
   }
 
-  max_score <- max(MATCHCRIT, na.rm = TRUE) + 0.1
-  min_score <- min(MATCHCRIT, na.rm = TRUE) - 0.1
+  if (!is.null(xlim) && length(xlim) == 2L && all(is.finite(xlim))) {
+    min_score <- xlim[1]; max_score <- xlim[2]
+  } else {
+    max_score <- max(MATCHCRIT, na.rm = TRUE) + 0.1
+    min_score <- min(MATCHCRIT, na.rm = TRUE) - 0.1
+  }
 
   col <- c("dodgerblue2", "goldenrod2")
   alpha <- .5

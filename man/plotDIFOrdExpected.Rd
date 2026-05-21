@@ -12,7 +12,8 @@ plotDIFOrdExpected(
   match.name,
   draw.empirical = TRUE,
   num.groups = 3L,
-  n.theta = 300L
+  n.theta = 300L,
+  xlim = NULL
 )
 }
 \arguments{
@@ -39,6 +40,9 @@ plots in this package. Default \code{3}.}
 
 \item{n.theta}{integer: number of points along the matching scale at which
 to evaluate the expected-score curve. Default \code{300}.}
+
+\item{xlim}{numeric vector of length two: optional x-axis range. The
+default \code{NULL} uses the observed matching range.}
 }
 \value{
 A \code{ggplot} object.

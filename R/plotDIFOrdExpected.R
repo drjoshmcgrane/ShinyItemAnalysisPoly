@@ -27,6 +27,8 @@
 #'   plots in this package. Default `3`.
 #' @param n.theta integer: number of points along the matching scale at which
 #'   to evaluate the expected-score curve. Default `300`.
+#' @param xlim numeric vector of length two: optional x-axis range. The
+#'   default `NULL` uses the observed matching range.
 #'
 #' @return A `ggplot` object.
 #'
@@ -54,7 +56,8 @@
 #' @export
 plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,
                                match.name, draw.empirical = TRUE,
-                               num.groups = 3L, n.theta = 300L) {
+                               num.groups = 3L, n.theta = 300L,
+                               xlim = NULL) {
   if (!inherits(x, "difORD")) {
     stop("'x' must be an object of class 'difORD' (from difNLR::difORD()).",
          call. = FALSE)
@@ -102,8 +105,12 @@ plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,
   cats <- sort(unique(stats::na.omit(item_y)))
   cat_values <- as.numeric(cats)
 
-  # Theta grid spanning the observed matching range
-  rng <- range(match_full, na.rm = TRUE)
+  # Theta grid spanning the observed matching range (or user-supplied xlim)
+  if (!is.null(xlim) && length(xlim) == 2L && all(is.finite(xlim))) {
+    rng <- as.numeric(xlim)
+  } else {
+    rng <- range(match_full, na.rm = TRUE)
+  }
   theta_grid <- seq(rng[1], rng[2], length.out = as.integer(n.theta))
 
   ## Expected-score curve per group ------------------------------------------

@@ -2443,20 +2443,32 @@ DIF_logistic_items_plot <- reactive({
   show_obs <- isTRUE(input$DIF_logistic_items_show_observed)
   ng <- if (show_obs) input$DIF_logistic_observed_groups else NULL
 
+  user_xlab <- trimws(input$DIF_logistic_items_xlab %||% "")
+  if (nzchar(user_xlab)) match_label <- user_xlab
+
+  xmin <- suppressWarnings(as.numeric(input$DIF_logistic_items_xmin))
+  xmax <- suppressWarnings(as.numeric(input$DIF_logistic_items_xmax))
+  xlim_arg <- if (length(xmin) == 1L && length(xmax) == 1L &&
+                  is.finite(xmin) && is.finite(xmax) && xmin < xmax) {
+    c(xmin, xmax)
+  } else NULL
+
   g <- ShinyItemAnalysisPoly::plotDIFLogistic(fit,
     item = item, match = match, item.name = item_names()[item],
     Data = data, group = group,
     draw.empirical = show_obs, num.groups = ng,
-    match.name = match_label
+    match.name = match_label, xlim = xlim_arg
   )
   g
 })
 
 output$DIF_logistic_items_plot <- renderPlotly({
   g <- DIF_logistic_items_plot()
-  p <- ggplotly(g)
+  p <- ggplotly(g, tooltip = "text")
 
-  match_label <- switch(input$DIF_logistic_items_matching,
+  user_xlab <- trimws(input$DIF_logistic_items_xlab %||% "")
+  match_label <- if (nzchar(user_xlab)) user_xlab else switch(
+    input$DIF_logistic_items_matching,
     "uploaded"  = "Uploaded match",
     "zuploaded" = "Uploaded standardized match",
     "zscore"    = "Standardized total score",
@@ -2477,7 +2489,11 @@ output$DIF_logistic_items_plot <- renderPlotly({
   }
 
   p$elementId <- NULL
-  hide_legend(p) |> plotly::config(displayModeBar = FALSE)
+  p |>
+    plotly::layout(legend = list(x = 0.01, y = 0.99, xanchor = "left",
+                                  yanchor = "top",
+                                  bgcolor = "rgba(255,255,255,0.6)")) |>
+    plotly::config(displayModeBar = FALSE)
 })
 
 # ** Download plot ####
@@ -5802,6 +5818,15 @@ DIF_cumulative_items_plot_expected <- reactive({
     "theta"     = "IRT θ",
     "Matching criterion"
   )
+  user_xlab <- trimws(input$DIF_cumulative_items_xlab %||% "")
+  if (nzchar(user_xlab)) match_label <- user_xlab
+
+  xmin <- suppressWarnings(as.numeric(input$DIF_cumulative_items_xmin))
+  xmax <- suppressWarnings(as.numeric(input$DIF_cumulative_items_xmax))
+  xlim_arg <- if (length(xmin) == 1L && length(xmax) == 1L &&
+                  is.finite(xmin) && is.finite(xmax) && xmin < xmax) {
+    c(xmin, xmax)
+  } else NULL
 
   g <- ShinyItemAnalysisPoly::plotDIFOrdExpected(
     fit,
@@ -5809,7 +5834,8 @@ DIF_cumulative_items_plot_expected <- reactive({
     item.name = item_names()[item],
     match.name = match_label,
     draw.empirical = show_obs,
-    num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng)
+    num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng),
+    xlim = xlim_arg
   ) +
     theme(
       legend.box.just = "top",
@@ -5824,9 +5850,11 @@ DIF_cumulative_items_plot_expected <- reactive({
 
 output$DIF_cumulative_items_plot_expected <- renderPlotly({
   g <- DIF_cumulative_items_plot_expected()
-  p <- ggplotly(g)
+  p <- ggplotly(g, tooltip = "text")
 
-  match_label <- switch(input$DIF_cumulative_items_matching,
+  user_xlab <- trimws(input$DIF_cumulative_items_xlab %||% "")
+  match_label <- if (nzchar(user_xlab)) user_xlab else switch(
+    input$DIF_cumulative_items_matching,
     "uploaded"  = "Uploaded match",
     "zuploaded" = "Uploaded standardized match",
     "zscore"    = "Standardized total score",
@@ -5847,7 +5875,11 @@ output$DIF_cumulative_items_plot_expected <- renderPlotly({
   }
 
   p$elementId <- NULL
-  hide_legend(p) |> plotly::config(displayModeBar = FALSE)
+  p |>
+    plotly::layout(legend = list(x = 0.01, y = 0.99, xanchor = "left",
+                                  yanchor = "top",
+                                  bgcolor = "rgba(255,255,255,0.6)")) |>
+    plotly::config(displayModeBar = FALSE)
 })
 
 # ** Download plot - expected item score ####
@@ -6417,6 +6449,15 @@ DIF_adjacent_items_plot <- reactive({
     "theta"     = "IRT θ",
     "Matching criterion"
   )
+  user_xlab <- trimws(input$DIF_adjacent_items_xlab %||% "")
+  if (nzchar(user_xlab)) match_label <- user_xlab
+
+  xmin <- suppressWarnings(as.numeric(input$DIF_adjacent_items_xmin))
+  xmax <- suppressWarnings(as.numeric(input$DIF_adjacent_items_xmax))
+  xlim_arg <- if (length(xmin) == 1L && length(xmax) == 1L &&
+                  is.finite(xmin) && is.finite(xmax) && xmin < xmax) {
+    c(xmin, xmax)
+  } else NULL
 
   g <- ShinyItemAnalysisPoly::plotDIFOrdExpected(
     fit,
@@ -6424,7 +6465,8 @@ DIF_adjacent_items_plot <- reactive({
     item.name = item_names()[item],
     match.name = match_label,
     draw.empirical = show_obs,
-    num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng)
+    num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng),
+    xlim = xlim_arg
   ) +
     theme(
       legend.box.just = "top",
@@ -6439,9 +6481,11 @@ DIF_adjacent_items_plot <- reactive({
 
 output$DIF_adjacent_items_plot <- renderPlotly({
   g <- DIF_adjacent_items_plot()
-  p <- ggplotly(g)
+  p <- ggplotly(g, tooltip = "text")
 
-  match_label <- switch(input$DIF_adjacent_items_matching,
+  user_xlab <- trimws(input$DIF_adjacent_items_xlab %||% "")
+  match_label <- if (nzchar(user_xlab)) user_xlab else switch(
+    input$DIF_adjacent_items_matching,
     "uploaded"  = "Uploaded match",
     "zuploaded" = "Uploaded standardized match",
     "zscore"    = "Standardized total score",
@@ -6462,7 +6506,11 @@ output$DIF_adjacent_items_plot <- renderPlotly({
   }
 
   p$elementId <- NULL
-  hide_legend(p) |> plotly::config(displayModeBar = FALSE)
+  p |>
+    plotly::layout(legend = list(x = 0.01, y = 0.99, xanchor = "left",
+                                  yanchor = "top",
+                                  bgcolor = "rgba(255,255,255,0.6)")) |>
+    plotly::config(displayModeBar = FALSE)
 })
 
 # ** Plot download ####

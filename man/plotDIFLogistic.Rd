@@ -14,7 +14,8 @@ plotDIFLogistic(
   match,
   draw.empirical = TRUE,
   num.groups = NULL,
-  match.name
+  match.name,
+  xlim = NULL
 )
 }
 \arguments{
@@ -46,6 +47,9 @@ numeric vectors such as IRT \eqn{\theta} or WLE estimates) it defaults to
 
 \item{match.name}{character: label for the x-axis. If missing, an
 appropriate label is chosen from \code{match}.}
+
+\item{xlim}{numeric vector of length two: optional x-axis range. The
+default \code{NULL} uses the data range (padded by 0.1 logits on each side).}
 }
 \description{
 Plots characteristic curve of 2PL logistic DIF model
