@@ -644,19 +644,25 @@ validity_predictor <- reactive({
                 label  = "Standardized total score (z)"))
   }
   if (choice == "theta") {
-    # Try the dichotomous IRT model first; fall back to the polytomous IRT
-    # model if items are polytomous (the binary fit will error out).
-    fs <- tryCatch(IRT_binary_fscores_raw(), error = function(e) NULL)
-    if (!is.null(fs)) {
-      return(list(values = as.numeric(fs[, 1]),
-                  label  = "IRT θ (dichotomous)"))
+    # Explicitly dispatch on the data type set in the Data tab: "binary"
+    # → dichotomous IRT fscores; "ordinal" → polytomous IRT fscores;
+    # anything else (continuous etc.) → not applicable.
+    dtype <- tryCatch(data_type(), error = function(e) NA_character_)
+    if (identical(dtype, "binary")) {
+      fs <- tryCatch(IRT_binary_fscores_raw(), error = function(e) NULL)
+      if (!is.null(fs)) {
+        return(list(values = as.numeric(fs[, 1]),
+                    label  = "IRT θ (dichotomous)"))
+      }
+    } else if (identical(dtype, "ordinal")) {
+      fs <- tryCatch(IRT_poly_fscores_raw(), error = function(e) NULL)
+      if (!is.null(fs)) {
+        return(list(values = as.numeric(fs[, 1]),
+                    label  = "IRT θ (polytomous)"))
+      }
     }
-    fs <- tryCatch(IRT_poly_fscores_raw(), error = function(e) NULL)
-    if (!is.null(fs)) {
-      return(list(values = as.numeric(fs[, 1]),
-                  label  = "IRT θ (polytomous)"))
-    }
-    return(list(values = NULL, label = "IRT θ"))
+    return(list(values = NULL, label = "IRT θ",
+                dtype  = dtype))
   }
   list(values = as.numeric(total_score()),
        label  = "Total score")
@@ -666,13 +672,27 @@ validity_predictor <- reactive({
 output$validity_predictor_warning <- renderUI({
   p <- validity_predictor()
   if (is.null(p$values)) {
-    return(HTML(paste0("<div style='color:#cc6600'>",
-      "IRT θ is not available — neither the dichotomous nor the ",
-      "polytomous IRT model in the <em>IRT models</em> tab has been fit ",
-      "yet for this dataset. Open the <em>IRT models</em> tab once to fit ",
-      "the appropriate model, or switch the predictor to total score or ",
-      "standardized total score.",
-      "</div>")))
+    dtype <- p$dtype %||% NA_character_
+    tab_hint <- if (identical(dtype, "binary")) {
+      "the <em>IRT models → Dichotomous</em> tab"
+    } else if (identical(dtype, "ordinal")) {
+      "the <em>IRT models → Polytomous</em> tab"
+    } else if (identical(dtype, "continuous")) {
+      "IRT θ is not applicable to continuous (non-categorical) item data"
+    } else {
+      "the <em>IRT models</em> tab"
+    }
+    msg <- if (identical(dtype, "continuous")) {
+      paste0("<div style='color:#cc6600'>", tab_hint,
+             ". Use total score or standardized total score instead.",
+             "</div>")
+    } else {
+      paste0("<div style='color:#cc6600'>",
+             "IRT θ is not available — open ", tab_hint,
+             " and fit the model first, or switch the predictor to total ",
+             "score or standardized total score.</div>")
+    }
+    return(HTML(msg))
   }
   HTML("")
 })
