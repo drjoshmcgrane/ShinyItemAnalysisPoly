@@ -29,6 +29,9 @@
 #'   to evaluate the expected-score curve. Default `300`.
 #' @param xlim numeric vector of length two: optional x-axis range. The
 #'   default `NULL` uses the observed matching range.
+#' @param bin.type character: how to define the empirical bins on the
+#'   matching scale. `"equal-freq"` (default) uses quantile-based bins;
+#'   `"equal-dist"` splits the matching range into bins of equal width.
 #'
 #' @return A `ggplot` object.
 #'
@@ -57,7 +60,9 @@
 plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,
                                match.name, draw.empirical = TRUE,
                                num.groups = 3L, n.theta = 300L,
-                               xlim = NULL) {
+                               xlim = NULL,
+                               bin.type = c("equal-dist", "equal-freq")) {
+  bin.type <- match.arg(bin.type)
   if (!inherits(x, "difORD")) {
     stop("'x' must be an object of class 'difORD' (from difNLR::difORD()).",
          call. = FALSE)
@@ -129,6 +134,7 @@ plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,
   )
 
   ## Empirical mean per bin per group ----------------------------------------
+  match_all <- match_full
   bin_means <- function(match_g, y_g, k = num.groups) {
     if (length(match_g) == 0L) {
       return(data.frame(Match = numeric(0), Expected = numeric(0),
@@ -140,19 +146,26 @@ plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,
                         Expected = mean(y_g, na.rm = TRUE),
                         Count = length(match_g)))
     }
-    brks <- unique(stats::quantile(match_g,
-                                   probs = seq(0, 1, length.out = k + 1L),
-                                   na.rm = TRUE, type = 7))
+    brks <- if (bin.type == "equal-dist") {
+      rng_all <- range(match_all, na.rm = TRUE)
+      seq(rng_all[1], rng_all[2], length.out = k + 1L)
+    } else {
+      unique(stats::quantile(match_g,
+                             probs = seq(0, 1, length.out = k + 1L),
+                             na.rm = TRUE, type = 7))
+    }
     if (length(brks) < 3L) {
       return(data.frame(Match = mean(match_g, na.rm = TRUE),
                         Expected = mean(y_g, na.rm = TRUE),
                         Count = length(match_g)))
     }
     bins <- cut(match_g, breaks = brks, include.lowest = TRUE)
+    tbl <- table(bins)
+    keep <- tbl > 0
     data.frame(
-      Match = as.numeric(tapply(match_g, bins, mean, na.rm = TRUE)),
-      Expected = as.numeric(tapply(y_g, bins, mean, na.rm = TRUE)),
-      Count = as.integer(table(bins))
+      Match = as.numeric(tapply(match_g, bins, mean, na.rm = TRUE))[keep],
+      Expected = as.numeric(tapply(y_g, bins, mean, na.rm = TRUE))[keep],
+      Count = as.integer(tbl)[keep]
     )
   }
 

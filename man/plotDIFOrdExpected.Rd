@@ -13,7 +13,8 @@ plotDIFOrdExpected(
   draw.empirical = TRUE,
   num.groups = 3L,
   n.theta = 300L,
-  xlim = NULL
+  xlim = NULL,
+  bin.type = c("equal-dist", "equal-freq")
 )
 }
 \arguments{
@@ -43,6 +44,10 @@ to evaluate the expected-score curve. Default \code{300}.}
 
 \item{xlim}{numeric vector of length two: optional x-axis range. The
 default \code{NULL} uses the observed matching range.}
+
+\item{bin.type}{character: how to define the empirical bins on the
+matching scale. \code{"equal-freq"} (default) uses quantile-based bins;
+\code{"equal-dist"} splits the matching range into bins of equal width.}
 }
 \value{
 A \code{ggplot} object.

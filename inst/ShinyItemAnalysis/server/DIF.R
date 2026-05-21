@@ -2453,11 +2453,14 @@ DIF_logistic_items_plot <- reactive({
     c(xmin, xmax)
   } else NULL
 
+  bin_type <- input$DIF_logistic_items_bin_type %||% "equal-dist"
+
   g <- ShinyItemAnalysisPoly::plotDIFLogistic(fit,
     item = item, match = match, item.name = item_names()[item],
     Data = data, group = group,
     draw.empirical = show_obs, num.groups = ng,
-    match.name = match_label, xlim = xlim_arg
+    match.name = match_label, xlim = xlim_arg,
+    bin.type = bin_type
   )
   g
 })
@@ -5844,6 +5847,8 @@ DIF_cumulative_items_plot_expected <- reactive({
     c(xmin, xmax)
   } else NULL
 
+  bin_type <- input$DIF_cumulative_items_bin_type %||% "equal-dist"
+
   g <- ShinyItemAnalysisPoly::plotDIFOrdExpected(
     fit,
     item = item,
@@ -5851,7 +5856,8 @@ DIF_cumulative_items_plot_expected <- reactive({
     match.name = match_label,
     draw.empirical = show_obs,
     num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng),
-    xlim = xlim_arg
+    xlim = xlim_arg,
+    bin.type = bin_type
   ) +
     theme(
       legend.box.just = "top",
@@ -6488,6 +6494,8 @@ DIF_adjacent_items_plot <- reactive({
     c(xmin, xmax)
   } else NULL
 
+  bin_type <- input$DIF_adjacent_items_bin_type %||% "equal-dist"
+
   g <- ShinyItemAnalysisPoly::plotDIFOrdExpected(
     fit,
     item = item,
@@ -6495,7 +6503,8 @@ DIF_adjacent_items_plot <- reactive({
     match.name = match_label,
     draw.empirical = show_obs,
     num.groups = if (is.null(ng) || is.na(ng)) 3L else as.integer(ng),
-    xlim = xlim_arg
+    xlim = xlim_arg,
+    bin.type = bin_type
   ) +
     theme(
       legend.box.just = "top",

@@ -228,6 +228,19 @@ ui_DIF_cumulative <- tabPanel(
           )
         ),
         column(
+          2,
+          conditionalPanel(
+            condition = "input.DIF_cumulative_items_show_observed == true",
+            radioButtons(
+              inputId = "DIF_cumulative_items_bin_type",
+              label = "Bin style",
+              choices = c("Equal distance" = "equal-dist",
+                          "Equal frequency" = "equal-freq"),
+              selected = "equal-dist", inline = FALSE
+            )
+          )
+        ),
+        column(
           3,
           textInput(
             inputId = "DIF_cumulative_items_xlab",

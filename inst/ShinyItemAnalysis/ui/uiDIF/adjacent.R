@@ -219,6 +219,19 @@ ui_DIF_adjacent <- tabPanel(
           )
         ),
         column(
+          2,
+          conditionalPanel(
+            condition = "input.DIF_adjacent_items_show_observed == true",
+            radioButtons(
+              inputId = "DIF_adjacent_items_bin_type",
+              label = "Bin style",
+              choices = c("Equal distance" = "equal-dist",
+                          "Equal frequency" = "equal-freq"),
+              selected = "equal-dist", inline = FALSE
+            )
+          )
+        ),
+        column(
           3,
           textInput(
             inputId = "DIF_adjacent_items_xlab",

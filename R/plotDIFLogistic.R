@@ -25,6 +25,14 @@
 #'   appropriate label is chosen from `match`.
 #' @param xlim numeric vector of length two: optional x-axis range. The
 #'   default `NULL` uses the data range (padded by 0.1 logits on each side).
+#' @param bin.type character: how to define the empirical bins on the
+#'   matching scale. `"equal-dist"` (default) splits the matching range
+#'   into bins of equal width; bin midpoints sit at constant intervals on
+#'   the x-axis and tail bins may have fewer respondents (be wary of bins
+#'   with fewer than ~30 respondents). `"equal-freq"` uses quantile-based
+#'   bins so each bin holds roughly the same number of respondents but at
+#'   uneven x-axis intervals. Ignored when the matching variable is an
+#'   integer total score (which is always grouped by unique value).
 #'
 #' @details This function plots characteristic curves of 2PL logistic DIF model
 #' fitted by `difLogistic()` function from difR package using ggplot2.
@@ -91,7 +99,9 @@
 #' @export
 plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference", "Focal"),
                             Data, group, match, draw.empirical = TRUE,
-                            num.groups = NULL, match.name, xlim = NULL) {
+                            num.groups = NULL, match.name, xlim = NULL,
+                            bin.type = c("equal-dist", "equal-freq")) {
+  bin.type <- match.arg(bin.type)
   res <- x
   i <- ifelse(is.character(item) | is.factor(item),
     (1:length(res$names))[res$names == item],
@@ -196,11 +206,17 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
             Count = length(match_g)
           ))
         }
-        brks <- unique(stats::quantile(match_g,
-                                       probs = seq(0, 1, length.out = n_bins + 1L),
-                                       na.rm = TRUE, type = 7))
-        # If the variable has many ties, quantile() can return duplicate
-        # breaks; collapse them to keep cut() happy at the cost of fewer bins.
+        brks <- if (bin.type == "equal-dist") {
+          # Equal-width bins across the matching range (use the COMBINED
+          # range so reference and focal share the same x-axis breaks)
+          rng_all <- range(MATCHCRIT, na.rm = TRUE)
+          seq(rng_all[1], rng_all[2], length.out = n_bins + 1L)
+        } else {
+          unique(stats::quantile(match_g,
+                                 probs = seq(0, 1, length.out = n_bins + 1L),
+                                 na.rm = TRUE, type = 7))
+        }
+        # Tie-safe: cut needs at least one interval
         if (length(brks) < 3L) {
           return(data.frame(
             Score = mean(match_g, na.rm = TRUE),
@@ -209,10 +225,13 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
           ))
         }
         bins <- cut(match_g, breaks = brks, include.lowest = TRUE)
+        tbl <- table(bins)
+        # Drop empty bins so they don't render as ghost points
+        keep <- tbl > 0
         data.frame(
-          Score = as.numeric(tapply(match_g, bins, mean, na.rm = TRUE)),
-          Probability = as.numeric(tapply(y_g, bins, mean, na.rm = TRUE)),
-          Count = as.integer(table(bins))
+          Score = as.numeric(tapply(match_g, bins, mean, na.rm = TRUE))[keep],
+          Probability = as.numeric(tapply(y_g, bins, mean, na.rm = TRUE))[keep],
+          Count = as.integer(tbl)[keep]
         )
       }
     }

@@ -15,7 +15,8 @@ plotDIFLogistic(
   draw.empirical = TRUE,
   num.groups = NULL,
   match.name,
-  xlim = NULL
+  xlim = NULL,
+  bin.type = c("equal-dist", "equal-freq")
 )
 }
 \arguments{
@@ -50,6 +51,15 @@ appropriate label is chosen from \code{match}.}
 
 \item{xlim}{numeric vector of length two: optional x-axis range. The
 default \code{NULL} uses the data range (padded by 0.1 logits on each side).}
+
+\item{bin.type}{character: how to define the empirical bins on the
+matching scale. \code{"equal-dist"} (default) splits the matching range
+into bins of equal width; bin midpoints sit at constant intervals on
+the x-axis and tail bins may have fewer respondents (be wary of bins
+with fewer than ~30 respondents). \code{"equal-freq"} uses quantile-based
+bins so each bin holds roughly the same number of respondents but at
+uneven x-axis intervals. Ignored when the matching variable is an
+integer total score (which is always grouped by unique value).}
 }
 \description{
 Plots characteristic curve of 2PL logistic DIF model

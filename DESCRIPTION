@@ -1,7 +1,7 @@
 Type: Package
 Package: ShinyItemAnalysisPoly
 Title: Test and Item Analysis via Shiny (Extended Polytomous IRT Fork)
-Version: 1.5.5.9003
+Version: 1.5.5.9004
 Date: 2025-07-10
 Authors@R: c(
     person("Josh", "McGrane", , "drjoshmcgrane@gmail.com", role = c("aut", "cre"),
