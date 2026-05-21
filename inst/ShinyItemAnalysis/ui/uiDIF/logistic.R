@@ -294,6 +294,17 @@ ui_DIF_logistic <- tabPanel(
       ),
       plotlyOutput("DIF_logistic_items_plot"),
       downloadButton("DIF_logistic_items_plot_download", label = "Download figure"),
+      conditionalPanel(
+        condition = "input.DIF_logistic_items_show_observed == true",
+        br(),
+        h4("Bin sample sizes"),
+        p("Number of respondents in each bin of the matching variable, ",
+          "split by group. Rule of thumb: aim for at least 30 respondents ",
+          "per bin per group; bins shown in red are below that threshold ",
+          "and the corresponding empirical proportions should be interpreted ",
+          "with caution."),
+        tableOutput("DIF_logistic_items_bin_table")
+      ),
       h4("Equation"),
       p(
         "The probability that respondent ", strong("\\(p\\)"), " with matching criterion ",

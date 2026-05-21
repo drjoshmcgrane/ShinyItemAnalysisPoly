@@ -2531,6 +2531,41 @@ output$DIF_logistic_items_plot_download <- downloadHandler(
   }
 )
 
+# ** Bin sample-size table ####
+DIF_logistic_items_bin_df <- reactive({
+  data <- data.frame(binary())
+  grp  <- as.integer(unlist(group()))
+  match <- .resolve_logistic_match("DIF_logistic_items_matching", data)
+  if (length(match) == 1L && match[1] %in% c("score", "zscore")) {
+    match <- if (match[1] == "score") rowSums(data) else as.numeric(scale(rowSums(data)))
+  }
+  ng <- input$DIF_logistic_observed_groups
+  if (is.null(ng) || is.na(ng) || ng < 2L) ng <- 3L
+  bt <- input$DIF_logistic_items_bin_type %||% "equal-dist"
+  tryCatch(
+    ShinyItemAnalysisPoly::difBinPopulations(
+      match = match, group = grp, num.groups = as.integer(ng),
+      bin.type = bt
+    ),
+    error = function(e) NULL
+  )
+})
+
+output$DIF_logistic_items_bin_table <- renderTable(
+  {
+    df <- DIF_logistic_items_bin_df()
+    if (is.null(df)) return(data.frame(Message = "Bin table unavailable."))
+    nm <- names(df)
+    nm[nm == "Lower"] <- "θ ≥"
+    nm[nm == "Upper"] <- "θ <"
+    nm[nm == "Midpoint"] <- "θ midpoint"
+    names(df) <- nm
+    df
+  },
+  striped = TRUE, hover = TRUE, na = "",
+  include.rownames = FALSE
+)
+
 # ** Matching variable in text ####
 output$DIF_logistic_items_matching_text <- renderUI({
   HTML(paste0("<b>\\(", DIF_logistic_summary_matching_text(), "\\)</b>"))
@@ -5934,6 +5969,37 @@ output$DIF_cumulative_items_plot_expected_download <- downloadHandler(
   }
 )
 
+# ** Bin sample-size table ####
+DIF_cumulative_items_bin_df <- reactive({
+  fit <- tryCatch(DIF_cumulative_method(), error = function(e) NULL)
+  if (is.null(fit)) return(NULL)
+  match <- if (is.list(fit$match)) fit$match[[1]] else fit$match
+  grp <- as.integer(unlist(fit$group))
+  ng <- input$DIF_cumulative_observed_groups
+  if (is.null(ng) || is.na(ng) || ng < 2L) ng <- 3L
+  bt <- input$DIF_cumulative_items_bin_type %||% "equal-dist"
+  tryCatch(
+    ShinyItemAnalysisPoly::difBinPopulations(
+      match = match, group = grp, num.groups = as.integer(ng), bin.type = bt
+    ),
+    error = function(e) NULL
+  )
+})
+
+output$DIF_cumulative_items_bin_table <- renderTable(
+  {
+    df <- DIF_cumulative_items_bin_df()
+    if (is.null(df)) return(data.frame(Message = "Bin table unavailable."))
+    nm <- names(df)
+    nm[nm == "Lower"] <- "θ ≥"
+    nm[nm == "Upper"] <- "θ <"
+    nm[nm == "Midpoint"] <- "θ midpoint"
+    names(df) <- nm
+    df
+  },
+  striped = TRUE, hover = TRUE, na = "", include.rownames = FALSE
+)
+
 # ** Equation - cumulative probability ####
 output$DIF_cumulative_items_equation_cumulative <- renderUI({
   HTML(DIF_cumulative_summary_equation_cumulative())
@@ -6566,6 +6632,37 @@ output$DIF_adjacent_items_plot_download <- downloadHandler(
       dpi = setting_figures$dpi
     )
   }
+)
+
+# ** Bin sample-size table ####
+DIF_adjacent_items_bin_df <- reactive({
+  fit <- tryCatch(DIF_adjacent_model(), error = function(e) NULL)
+  if (is.null(fit)) return(NULL)
+  match <- if (is.list(fit$match)) fit$match[[1]] else fit$match
+  grp <- as.integer(unlist(fit$group))
+  ng <- input$DIF_adjacent_observed_groups
+  if (is.null(ng) || is.na(ng) || ng < 2L) ng <- 3L
+  bt <- input$DIF_adjacent_items_bin_type %||% "equal-dist"
+  tryCatch(
+    ShinyItemAnalysisPoly::difBinPopulations(
+      match = match, group = grp, num.groups = as.integer(ng), bin.type = bt
+    ),
+    error = function(e) NULL
+  )
+})
+
+output$DIF_adjacent_items_bin_table <- renderTable(
+  {
+    df <- DIF_adjacent_items_bin_df()
+    if (is.null(df)) return(data.frame(Message = "Bin table unavailable."))
+    nm <- names(df)
+    nm[nm == "Lower"] <- "θ ≥"
+    nm[nm == "Upper"] <- "θ <"
+    nm[nm == "Midpoint"] <- "θ midpoint"
+    names(df) <- nm
+    df
+  },
+  striped = TRUE, hover = TRUE, na = "", include.rownames = FALSE
 )
 
 # ** Equation ####

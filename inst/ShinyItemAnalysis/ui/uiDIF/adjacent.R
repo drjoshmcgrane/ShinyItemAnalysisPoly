@@ -256,6 +256,15 @@ ui_DIF_adjacent <- tabPanel(
       ),
       plotlyOutput("DIF_adjacent_items_plot"),
       downloadButton("DIF_adjacent_items_plot_download", label = "Download figure"),
+      conditionalPanel(
+        condition = "input.DIF_adjacent_items_show_observed == true",
+        br(),
+        h4("Bin sample sizes"),
+        p("Number of respondents in each bin of the matching variable, ",
+          "split by group. Rule of thumb: aim for at least 30 respondents ",
+          "per bin per group; bins shown in red are below that threshold."),
+        tableOutput("DIF_adjacent_items_bin_table")
+      ),
       h4("Equation"),
       fluidRow(column(12, align = "center", uiOutput("DIF_adjacent_items_equation"))),
       h4("Table of parameters"),
