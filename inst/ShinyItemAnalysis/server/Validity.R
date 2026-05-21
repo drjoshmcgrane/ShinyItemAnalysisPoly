@@ -634,9 +634,48 @@ output$DB_DCplot <- downloadHandler(
 )
 
 
+# ** Predictor selection ####
+# Resolve the user's predictor choice (total score / z-score / IRT theta)
+# into a numeric vector + a label used for axis labels and table text.
+validity_predictor <- reactive({
+  choice <- input$validity_predictor %||% "total"
+  if (choice == "zscore") {
+    return(list(values = as.numeric(z_score()),
+                label  = "Standardized total score (z)"))
+  }
+  if (choice == "theta") {
+    fs <- tryCatch(IRT_binary_fscores_raw(), error = function(e) NULL)
+    if (is.null(fs)) {
+      # Fallback: tell the user to fit a binary IRT model
+      return(list(values = NULL,
+                  label  = "IRT θ"))
+    }
+    return(list(values = as.numeric(fs[, 1]),
+                label  = "IRT θ"))
+  }
+  list(values = as.numeric(total_score()),
+       label  = "Total score")
+})
+
+# User-facing warning when the predictor or method is unusable for the data.
+output$validity_predictor_warning <- renderUI({
+  p <- validity_predictor()
+  if (is.null(p$values)) {
+    return(HTML(paste0("<div style='color:#cc6600'>",
+      "IRT θ is not available — the dichotomous IRT model in the ",
+      "<em>IRT models</em> tab has not been fit yet for this dataset. ",
+      "Open the <em>IRT models</em> tab once to fit it, or switch the ",
+      "predictor to total score or standardized total score.",
+      "</div>")))
+  }
+  HTML("")
+})
+
 # ** Validity boxplot ####
 validity_plot_boxplot_Input <- reactive({
-  ts <- total_score()
+  pred <- validity_predictor()
+  validate(need(!is.null(pred$values), "Predictor unavailable."))
+  ts <- pred$values
   cv <- unlist(criterion())
 
   df <- data.table(ts, cv = as.factor(cv))
@@ -649,7 +688,7 @@ validity_plot_boxplot_Input <- reactive({
     geom_jitter(shape = 16, position = position_jitter(0.2)) +
     scale_fill_brewer(palette = "Blues") +
     xlab("Criterion group") +
-    ylab("Total score") +
+    ylab(pred$label) +
     coord_flip() +
     theme_app()
   g
@@ -657,7 +696,9 @@ validity_plot_boxplot_Input <- reactive({
 
 # ** Validity scatterplot ####
 validity_plot_scatter_Input <- reactive({
-  ts <- total_score()
+  pred <- validity_predictor()
+  validate(need(!is.null(pred$values), "Predictor unavailable."))
+  ts <- pred$values
   cv <- unlist(criterion())
 
   size <- as.factor(cv)
@@ -675,7 +716,7 @@ validity_plot_scatter_Input <- reactive({
       color = "red",
       show.legend = FALSE
     ) +
-    xlab("Total score") +
+    xlab(pred$label) +
     ylab("Criterion variable") +
     theme_app() +
     theme(
@@ -701,11 +742,12 @@ validity_plot_Input <- reactive({
 # ** Output validity descriptive plot ####
 output$validity_plot <- renderPlotly({
   g <- validity_plot_Input()
+  pred_label <- validity_predictor()$label
   p <- ggplotly(g)
 
   for (i in 1:length(p$x$data)) {
     text <- p$x$data[[i]]$text
-    text <- gsub("ts", "Total score", text)
+    text <- gsub("ts", pred_label, text)
     text <- gsub("cv", "Criterion variable", text)
     text <- gsub("size", "Count", text)
     text <- lapply(strsplit(text, split = "<br />"), unique)
@@ -736,25 +778,141 @@ output$DB_validity_plot <- downloadHandler(
   }
 )
 
+# ** Description block above the correlation result ####
+output$validity_cor_description <- renderUI({
+  m <- input$validity_cor_method %||% "pearson"
+  pred_label <- validity_predictor()$label
+  txt <- switch(m,
+    pearson = paste0(
+      "Pearson product-moment correlation <em>r</em> between <b>", pred_label,
+      "</b> and the criterion variable. The null hypothesis is that the ",
+      "true correlation is exactly 0. Assumes both variables are interval-",
+      "scaled and approximately bivariate-normal."),
+    spearman = paste0(
+      "Spearman rank correlation <em>ρ</em> between <b>", pred_label,
+      "</b> and the criterion variable. Computed on the ranks of the two ",
+      "variables, so it is robust to non-normality and appropriate when ",
+      "either variable is ordinal."),
+    kendall = paste0(
+      "Kendall rank correlation <em>τ</em> between <b>", pred_label,
+      "</b> and the criterion variable. An alternative rank-based measure ",
+      "that some prefer to Spearman, especially with small samples or ties."),
+    polychoric = paste0(
+      "Polychoric correlation between <b>", pred_label, "</b> and the ",
+      "criterion variable. Estimates the correlation between the underlying ",
+      "continuous variables assumed to give rise to two ordinal observed ",
+      "variables. Use when both the predictor and the criterion are ordinal."),
+    polyserial = paste0(
+      "Polyserial correlation between the continuous predictor <b>", pred_label,
+      "</b> and the ordinal criterion variable. Estimates the correlation ",
+      "between the predictor and the underlying continuous variable assumed ",
+      "to give rise to the ordinal criterion."),
+    biserial = paste0(
+      "Biserial correlation between the continuous predictor <b>", pred_label,
+      "</b> and a binary criterion variable. Assumes the binary criterion ",
+      "reflects an underlying normally-distributed continuous trait."),
+    pointbiserial = paste0(
+      "Point-biserial correlation between the continuous predictor <b>", pred_label,
+      "</b> and a binary criterion variable. Equivalent to Pearson <em>r</em> ",
+      "applied to the binary variable, with no assumption about an underlying ",
+      "continuous trait. Will be smaller in magnitude than the biserial ",
+      "estimate on the same data.")
+  )
+  HTML(paste0("<p>", txt, "</p>"))
+})
+
 # ** Validity correlation table ####
 validity_table_Input <- reactive({
-  ts <- total_score()
-  cv <- criterion()
+  pred <- validity_predictor()
+  if (is.null(pred$values)) {
+    return(list(txt = HTML("Predictor unavailable. See message above."),
+                pval = NA_real_, est = NA_real_, method = "none"))
+  }
+  ts <- pred$values
+  cv <- as.numeric(unlist(criterion()))
+  method <- input$validity_cor_method %||% "pearson"
 
-  ct <- cor.test(ts, cv, method = "pearson")
+  ok <- complete.cases(ts, cv)
+  ts <- ts[ok]; cv <- cv[ok]
+  n  <- length(ts)
 
-  txt <- HTML(paste0(
-    "<em>r</em>(",
-    ct$parameter,
-    ") = ",
-    sub("^(-?)0.", "\\1.", sprintf("%.2f", ct$estimate)), ", <em>p</em> = ",
-    ifelse(ct$p.value < .001, "<.001", sub("^(-?)0.", "\\1.", sprintf("%.3f", ct$p.value))), ", 95% CI [",
-    sub("^(-?)0.", "\\1.", sprintf("%.2f", ct$conf.int[1])),
-    ", ", sub("^(-?)0.", "\\1.", sprintf("%.2f", ct$conf.int[2])),
-    "]"
-  ))
+  fmt_num <- function(x) sub("^(-?)0\\.", "\\1.", sprintf("%.2f", x))
+  fmt_p   <- function(p) ifelse(p < .001, "<.001",
+                                 sub("^(-?)0\\.", "\\1.", sprintf("%.3f", p)))
 
-  list(txt = txt, pval = ct$p.value, est = ct$estimate)
+  # Validation per method
+  ord_levels <- function(v) length(unique(v))
+  is_binary  <- function(v) length(setdiff(unique(v), NA)) == 2L
+
+  res <- tryCatch({
+    if (method %in% c("pearson", "spearman", "kendall")) {
+      ct <- cor.test(ts, cv, method = method, exact = FALSE)
+      est <- as.numeric(ct$estimate); pval <- ct$p.value
+      sym <- switch(method, pearson = "r", spearman = "&rho;", kendall = "&tau;")
+      txt <- paste0("<em>", sym, "</em> = ", fmt_num(est),
+                    ", <em>p</em> = ", fmt_p(pval),
+                    ", <em>n</em> = ", n)
+      if (method == "pearson" && !is.null(ct$conf.int)) {
+        txt <- paste0(txt, ", 95% CI [", fmt_num(ct$conf.int[1]),
+                      ", ", fmt_num(ct$conf.int[2]), "]")
+      }
+      list(txt = HTML(txt), pval = pval, est = est, method = method)
+    } else if (method == "polychoric") {
+      # both must be ordinal with > 1 category; psych::polychoric refuses
+      # >8 categories on either variable
+      if (ord_levels(ts) > 8 || ord_levels(cv) > 8) {
+        return(list(txt = HTML("<span style='color:#cc6600'>Polychoric requires both variables to be ordinal with at most 8 categories each (psych::polychoric). The selected predictor or criterion has more — consider Spearman/Kendall, or use a coarser ordinal predictor.</span>"),
+                    pval = NA, est = NA, method = method))
+      }
+      est <- suppressWarnings(psych::polychoric(cbind(ts, cv))$rho[1, 2])
+      txt <- paste0("Polychoric &rho; = ", fmt_num(est),
+                    ", <em>n</em> = ", n,
+                    " <span style='color:#888;'>(no parametric significance test)</span>")
+      list(txt = HTML(txt), pval = NA, est = est, method = method)
+    } else if (method == "polyserial") {
+      # predictor continuous, criterion ordinal
+      if (ord_levels(cv) > 8) {
+        return(list(txt = HTML("<span style='color:#cc6600'>Polyserial expects an ordinal criterion (≤ 8 levels). Switch to Pearson or Spearman if the criterion is truly continuous.</span>"),
+                    pval = NA, est = NA, method = method))
+      }
+      est <- suppressWarnings(psych::polyserial(as.matrix(ts), as.matrix(cv)))
+      est <- as.numeric(est)[1]
+      txt <- paste0("Polyserial &rho; = ", fmt_num(est),
+                    ", <em>n</em> = ", n,
+                    " <span style='color:#888;'>(no parametric significance test)</span>")
+      list(txt = HTML(txt), pval = NA, est = est, method = method)
+    } else if (method == "biserial") {
+      if (!is_binary(cv)) {
+        return(list(txt = HTML("<span style='color:#cc6600'>Biserial requires a binary (two-value) criterion variable.</span>"),
+                    pval = NA, est = NA, method = method))
+      }
+      est <- psych::biserial(ts, cv)
+      txt <- paste0("Biserial <em>r<sub>b</sub></em> = ", fmt_num(est),
+                    ", <em>n</em> = ", n,
+                    " <span style='color:#888;'>(no parametric significance test)</span>")
+      list(txt = HTML(txt), pval = NA, est = est, method = method)
+    } else if (method == "pointbiserial") {
+      if (!is_binary(cv)) {
+        return(list(txt = HTML("<span style='color:#cc6600'>Point-biserial requires a binary (two-value) criterion variable.</span>"),
+                    pval = NA, est = NA, method = method))
+      }
+      ct <- cor.test(ts, cv, method = "pearson", exact = FALSE)
+      est <- as.numeric(ct$estimate); pval <- ct$p.value
+      txt <- paste0("Point-biserial <em>r<sub>pb</sub></em> = ", fmt_num(est),
+                    ", <em>p</em> = ", fmt_p(pval),
+                    ", <em>n</em> = ", n,
+                    ", 95% CI [", fmt_num(ct$conf.int[1]), ", ",
+                    fmt_num(ct$conf.int[2]), "]")
+      list(txt = HTML(txt), pval = pval, est = est, method = method)
+    } else {
+      list(txt = HTML(""), pval = NA, est = NA, method = method)
+    }
+  }, error = function(e) {
+    list(txt = HTML(paste0("<span style='color:#cc0000'>Could not compute correlation: ",
+                            conditionMessage(e), "</span>")),
+         pval = NA, est = NA, method = method)
+  })
+  res
 })
 
 # * Output validity correlation table ####
@@ -767,16 +925,31 @@ output$validity_table_interpretation <- renderUI({
   tab <- validity_table_Input()
   pval <- tab$pval
   est <- tab$est
+  pred_label <- validity_predictor()$label
 
+  if (is.na(est)) {
+    return(HTML(""))
+  }
   txt1 <- paste("<b>", "Interpretation:", "</b>")
   txt2 <- ifelse(est > 0, "positively", "negatively")
-  txt3 <- ifelse(pval < .05,
-    paste("The <em>p</em>-value is less than .05, thus we reject the null hypotheses.
-                       The total score and criterion variable are", txt2, "correlated."),
-    "The <em>p</em>-value is larger than .05, thus we don't reject the null hypotheses.
-                 We cannot conclude that a significant correlation between the total score
-                 and criterion variable exists."
-  )
+  if (is.na(pval)) {
+    txt3 <- paste0("The estimated coefficient (",
+                   sub("^(-?)0\\.", "\\1.", sprintf("%.2f", est)),
+                   ") indicates that <b>", pred_label,
+                   "</b> and the criterion variable are ", txt2,
+                   " associated. This method does not include a standard ",
+                   "parametric significance test; consider Pearson or Spearman ",
+                   "if a <em>p</em>-value is needed.")
+  } else if (pval < .05) {
+    txt3 <- paste0("The <em>p</em>-value is less than .05, so we reject the null ",
+                   "hypothesis. <b>", pred_label, "</b> and the criterion variable ",
+                   "are ", txt2, " correlated.")
+  } else {
+    txt3 <- paste0("The <em>p</em>-value is larger than .05, so we do not reject ",
+                   "the null hypothesis. We cannot conclude that a significant ",
+                   "correlation between <b>", pred_label, "</b> and the criterion ",
+                   "variable exists.")
+  }
   HTML(paste(txt1, txt3))
 })
 

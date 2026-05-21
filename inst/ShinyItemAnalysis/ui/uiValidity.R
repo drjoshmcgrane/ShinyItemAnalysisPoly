@@ -11,16 +11,49 @@ uiValidity <-
       p(
         "Depending on the criterion variable, different types of criterion validity may be examined. As an example, a correlation between the test score and the future study success or future GPA may be  used as a proof of predictive validity in the case of admission tests. A criterion variable may be uploaded in the ", strong("Data"), "section."
       ),
-      h4("Descriptive plots of criterion variable on total score"),
+      fluidRow(
+        column(
+          3,
+          selectInput(
+            inputId = "validity_predictor",
+            label = "Predictor",
+            choices = c(
+              "Total score" = "total",
+              "Standardized total score (z-score)" = "zscore",
+              "IRT θ (from IRT models tab)" = "theta"
+            ),
+            selected = "total"
+          )
+        ),
+        column(
+          3,
+          selectInput(
+            inputId = "validity_cor_method",
+            label = "Correlation method",
+            choices = c(
+              "Pearson (interval predictor, interval criterion)" = "pearson",
+              "Spearman rank (ρ; ordinal-friendly)" = "spearman",
+              "Kendall rank (τ; ordinal alternative)" = "kendall",
+              "Polychoric (ordinal predictor, ordinal criterion)" = "polychoric",
+              "Polyserial (continuous predictor, ordinal criterion)" = "polyserial",
+              "Biserial (continuous predictor, binary criterion, assumes underlying normal)" = "biserial",
+              "Point-biserial (continuous predictor, binary criterion)" = "pointbiserial"
+            ),
+            selected = "pearson"
+          )
+        )
+      ),
+      htmlOutput("validity_predictor_warning"),
+      h4("Descriptive plot of criterion variable on the chosen predictor"),
       p(
-        "Total scores are plotted according to a criterion variable. Boxplot or scatterplot is displayed depending on the type of criterion variable - whether it is discrete or continuous. Scatterplot is provided with a red linear regression line. "
+        "The predictor is plotted on the x-axis and the criterion on the y-axis. ",
+        "A boxplot is shown when the criterion looks discrete (six or fewer distinct values); ",
+        "otherwise a scatterplot with a red linear regression line is shown."
       ),
       plotlyOutput("validity_plot"),
       downloadButton(outputId = "DB_validity_plot", label = "Download figure"),
-      h4("Correlation of criterion variable and total score"),
-      p(
-        "An association between the total score and the criterion variable can be estimated using Pearson product-moment correlation coefficient ", em("r"), ". The null hypothesis being tested states that correlation is exactly 0. "
-      ),
+      h4("Correlation between the predictor and the criterion"),
+      htmlOutput("validity_cor_description"),
       uiOutput("validity_table"),
       br(),
       htmlOutput("validity_table_interpretation"),
