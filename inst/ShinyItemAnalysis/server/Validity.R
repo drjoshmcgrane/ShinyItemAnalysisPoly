@@ -697,6 +697,105 @@ output$validity_predictor_warning <- renderUI({
   HTML("")
 })
 
+# ** Scale-type detection ####
+# Classify a numeric vector as binary / ordinal / continuous. "Ordinal" means
+# a small number of whole-numbered levels, which is what the polychoric and
+# polyserial estimators assume. Everything else is treated as continuous.
+.validity_scale_type <- function(v) {
+  v <- v[!is.na(v)]
+  u <- unique(v)
+  if (length(u) < 2L) return("degenerate")
+  if (length(u) == 2L) return("binary")
+  whole <- all(abs(u - round(u)) < .Machine$double.eps^0.5)
+  if (whole && length(u) <= 8L) return("ordinal")
+  "continuous"
+}
+
+validity_types <- reactive({
+  pred <- validity_predictor()
+  cv <- suppressWarnings(as.numeric(unlist(criterion())))
+  list(
+    predictor = if (is.null(pred$values)) NA_character_ else .validity_scale_type(pred$values),
+    criterion = .validity_scale_type(cv)
+  )
+})
+
+# The coefficient implied by the two scale types, with the reason shown to
+# the user. Point-biserial is deliberately not auto-selected: it is Pearson's
+# r on a binary variable and is attenuated relative to biserial, so it is
+# offered only as an explicit alternative.
+validity_auto_method <- reactive({
+  ty <- validity_types()
+  p <- ty$predictor
+  cr <- ty$criterion
+  if (is.na(p) || p == "degenerate" || cr == "degenerate") {
+    return(list(method = "pearson", reason = "Scale types could not be determined."))
+  }
+  if (p == "continuous" && cr == "continuous") {
+    return(list(method = "pearson",
+                reason = "both the predictor and the criterion are continuous"))
+  }
+  if (p == "continuous" && cr == "binary") {
+    return(list(method = "biserial",
+                reason = "the predictor is continuous and the criterion is binary"))
+  }
+  if (p == "continuous" && cr == "ordinal") {
+    return(list(method = "polyserial",
+                reason = "the predictor is continuous and the criterion is ordinal"))
+  }
+  if (p %in% c("ordinal", "binary") && cr %in% c("ordinal", "binary")) {
+    return(list(method = "polychoric",
+                reason = "both the predictor and the criterion are categorical"))
+  }
+  # ordinal/binary predictor with a continuous criterion: polyserial with the
+  # roles swapped (continuous variable first).
+  list(method = "polyserial_swapped",
+       reason = "the criterion is continuous and the predictor is categorical")
+})
+
+# Alternatives worth offering for the detected types. Rank-based methods are
+# always defensible, so they are always listed.
+validity_method_choices <- reactive({
+  ty <- validity_types()
+  auto <- validity_auto_method()$method
+  ch <- c(
+    "Pearson r" = "pearson",
+    "Spearman rank rho" = "spearman",
+    "Kendall rank tau" = "kendall"
+  )
+  if (ty$criterion == "binary" && identical(ty$predictor, "continuous")) {
+    ch <- c(ch, "Biserial (assumes a latent normal criterion)" = "biserial",
+                "Point-biserial (no latent assumption)" = "pointbiserial")
+  }
+  if (ty$criterion == "ordinal" && identical(ty$predictor, "continuous")) {
+    ch <- c(ch, "Polyserial" = "polyserial")
+  }
+  if (ty$criterion %in% c("ordinal", "binary") &&
+      isTRUE(ty$predictor %in% c("ordinal", "binary"))) {
+    ch <- c(ch, "Polychoric / tetrachoric" = "polychoric")
+  }
+  if (auto == "polyserial_swapped") ch <- c(ch, "Polyserial" = "polyserial_swapped")
+  ch[!duplicated(ch)]
+})
+
+# The method actually used: the auto choice unless the user has opened the
+# override and picked something else.
+validity_method <- reactive({
+  auto <- validity_auto_method()$method
+  if (!isTRUE(input$validity_override)) return(auto)
+  m <- input$validity_cor_method
+  if (is.null(m) || !m %in% validity_method_choices()) auto else m
+})
+
+output$validity_method_selector <- renderUI({
+  selectInput(
+    inputId = "validity_cor_method",
+    label = "Coefficient",
+    choices = validity_method_choices(),
+    selected = validity_method()
+  )
+})
+
 # ** Validity boxplot ####
 validity_plot_boxplot_Input <- reactive({
   pred <- validity_predictor()
@@ -753,15 +852,55 @@ validity_plot_scatter_Input <- reactive({
   g
 })
 
-# ** Validity descriptive plot ####
-validity_plot_Input <- reactive({
-  cv <- criterion()
+# ** Validity logistic plot (binary criterion) ####
+# For a binary criterion a boxplot wastes the y-axis on two values. Show the
+# fitted probability of the higher criterion category across the predictor,
+# with the observed responses jittered along the top and bottom.
+validity_plot_logistic_Input <- reactive({
+  pred <- validity_predictor()
+  validate(need(!is.null(pred$values), "Predictor unavailable."))
+  ts <- pred$values
+  cv <- suppressWarnings(as.numeric(unlist(criterion())))
 
-  if (length(unique(cv)) <= 6) {
-    g <- validity_plot_boxplot_Input()
-  } else {
-    g <- validity_plot_scatter_Input()
-  }
+  df <- data.frame(ts, cv)
+  df <- df[complete.cases(df), ]
+  lv <- sort(unique(df$cv))
+  df$y <- as.numeric(df$cv == lv[2])
+
+  set.seed(1)
+  ggplot(df, aes(x = ts, y = y)) +
+    geom_jitter(height = 0.03, width = 0, shape = 16, alpha = 0.4,
+                colour = "black") +
+    geom_smooth(
+      method = "glm", formula = "y ~ x",
+      method.args = list(family = "binomial"),
+      colour = "red", fill = "red", alpha = 0.15
+    ) +
+    scale_y_continuous(limits = c(-0.08, 1.08), breaks = c(0, 0.5, 1)) +
+    xlab(pred$label) +
+    ylab(paste0("P(criterion = ", lv[2], ")")) +
+    theme_app()
+})
+
+# ** Validity descriptive plot ####
+# Matched to the criterion's scale type rather than to a bare count of
+# distinct values, so the plot agrees with the coefficient being reported.
+validity_plot_type <- reactive({
+  switch(validity_types()$criterion,
+    binary = "logistic",
+    ordinal = "boxplot",
+    "scatter"
+  )
+})
+
+validity_plot_Input <- reactive({
+  g <- switch(validity_plot_type(),
+    logistic = validity_plot_logistic_Input(),
+    boxplot  = validity_plot_boxplot_Input(),
+    validity_plot_scatter_Input()
+  )
+  res <- validity_table_Input()
+  if (!is.null(res$caption)) g <- g + labs(subtitle = res$caption)
   g
 })
 
@@ -771,27 +910,48 @@ output$validity_plot <- renderPlotly({
   pred_label <- validity_predictor()$label
   p <- ggplotly(g)
 
+  # Anchor each relabel to the start of a tooltip line. A bare gsub("ts", ...)
+  # rewrites those two letters anywhere they appear, including inside the
+  # values and inside any label that happens to contain them.
+  relabel <- function(txt, from, to) {
+    gsub(paste0("(^|<br />)", from, ":"), paste0("\\1", to, ":"), txt)
+  }
   for (i in 1:length(p$x$data)) {
     text <- p$x$data[[i]]$text
-    text <- gsub("ts", pred_label, text)
-    text <- gsub("cv", "Criterion variable", text)
-    text <- gsub("size", "Count", text)
+    text <- relabel(text, "ts", pred_label)
+    text <- relabel(text, "cv", "Criterion variable")
+    text <- relabel(text, "size", "Count")
+    text <- relabel(text, "y", "Criterion variable")
     text <- lapply(strsplit(text, split = "<br />"), unique)
     text <- unlist(lapply(text, paste, collapse = "<br />"))
     p$x$data[[i]]$text <- text
   }
 
   p$elementId <- NULL
+
+  # ggplotly drops labs(subtitle = ), so the coefficient caption has to be
+  # re-added as a paper-anchored annotation to reach the interactive plot.
+  cap <- validity_table_Input()$caption
+  if (!is.null(cap)) {
+    p <- p |> plotly::layout(
+      margin = list(t = 46),
+      annotations = list(
+        text = cap, showarrow = FALSE,
+        xref = "paper", yref = "paper", x = 0, y = 1.06,
+        xanchor = "left", yanchor = "bottom",
+        font = list(size = 13, color = "#444444")
+      )
+    )
+  }
   p |> plotly::config(displayModeBar = FALSE)
 })
 
 # ** DB validity descriptive plot ####
 output$DB_validity_plot <- downloadHandler(
   filename = function() {
-    cv <- criterion()
-    k <- 6
-    type <- ifelse(length(unique(cv)) <= length(cv) / k, "boxplot", "scatterplot")
-    paste("fig_CriterionVariable_", type, ".png", sep = "")
+    # Name the file after the plot that was actually drawn; the old rule here
+    # used a different cutoff from the plot itself, so the two disagreed.
+    paste0("fig_CriterionVariable_", validity_plot_type(), ".png")
   },
   content = function(file) {
     ggsave(file,
@@ -805,142 +965,153 @@ output$DB_validity_plot <- downloadHandler(
 )
 
 # ** Description block above the correlation result ####
+# States which coefficient is being used and why, so the scale-type reasoning
+# is visible rather than buried in a dropdown the user has to decode.
 output$validity_cor_description <- renderUI({
-  m <- input$validity_cor_method %||% "pearson"
+  ty <- validity_types()
+  auto <- validity_auto_method()
+  m <- validity_method()
   pred_label <- validity_predictor()$label
-  txt <- switch(m,
-    pearson = paste0(
-      "Pearson product-moment correlation <em>r</em> between <b>", pred_label,
-      "</b> and the criterion variable. The null hypothesis is that the ",
-      "true correlation is exactly 0. Assumes both variables are interval-",
-      "scaled and approximately bivariate-normal."),
-    spearman = paste0(
-      "Spearman rank correlation <em>ρ</em> between <b>", pred_label,
-      "</b> and the criterion variable. Computed on the ranks of the two ",
-      "variables, so it is robust to non-normality and appropriate when ",
-      "either variable is ordinal."),
-    kendall = paste0(
-      "Kendall rank correlation <em>τ</em> between <b>", pred_label,
-      "</b> and the criterion variable. An alternative rank-based measure ",
-      "that some prefer to Spearman, especially with small samples or ties."),
-    polychoric = paste0(
-      "Polychoric correlation between <b>", pred_label, "</b> and the ",
-      "criterion variable. Estimates the correlation between the underlying ",
-      "continuous variables assumed to give rise to two ordinal observed ",
-      "variables. Use when both the predictor and the criterion are ordinal."),
-    polyserial = paste0(
-      "Polyserial correlation between the continuous predictor <b>", pred_label,
-      "</b> and the ordinal criterion variable. Estimates the correlation ",
-      "between the predictor and the underlying continuous variable assumed ",
-      "to give rise to the ordinal criterion."),
-    biserial = paste0(
-      "Biserial correlation between the continuous predictor <b>", pred_label,
-      "</b> and a binary criterion variable. Assumes the binary criterion ",
-      "reflects an underlying normally-distributed continuous trait."),
-    pointbiserial = paste0(
-      "Point-biserial correlation between the continuous predictor <b>", pred_label,
-      "</b> and a binary criterion variable. Equivalent to Pearson <em>r</em> ",
-      "applied to the binary variable, with no assumption about an underlying ",
-      "continuous trait. Will be smaller in magnitude than the biserial ",
-      "estimate on the same data.")
+
+  pretty_type <- function(x) {
+    switch(x,
+      binary = "binary (2 levels)", ordinal = "ordinal (few whole-numbered levels)",
+      continuous = "continuous", degenerate = "constant", "unknown"
+    )
+  }
+  detected <- paste0(
+    "<p><b>", pred_label, "</b> detected as <b>", pretty_type(ty$predictor),
+    "</b>; criterion detected as <b>", pretty_type(ty$criterion), "</b>.</p>"
   )
-  HTML(paste0("<p>", txt, "</p>"))
+
+  blurb <- switch(m,
+    pearson = "Pearson product-moment correlation <em>r</em>. Assumes both variables are interval-scaled and approximately bivariate normal.",
+    spearman = "Spearman rank correlation <em>&rho;</em>, computed on ranks. Robust to non-normality and monotone non-linearity.",
+    kendall = "Kendall rank correlation <em>&tau;</em>, a rank-based alternative to Spearman that handles ties more gracefully in small samples.",
+    biserial = "Biserial correlation <em>r<sub>b</sub></em>. Estimates the correlation with the continuous trait assumed to underlie the binary criterion, correcting the attenuation that Pearson's <em>r</em> suffers on a dichotomy.",
+    pointbiserial = "Point-biserial correlation <em>r<sub>pb</sub></em>. Pearson's <em>r</em> applied to the binary criterion, with no latent-trait assumption. Necessarily smaller in magnitude than the biserial estimate on the same data.",
+    polyserial = "Polyserial correlation. Estimates the correlation between the continuous variable and the continuous trait assumed to underlie the ordinal one.",
+    polyserial_swapped = "Polyserial correlation. Estimates the correlation between the continuous criterion and the continuous trait assumed to underlie the categorical predictor.",
+    polychoric = "Polychoric correlation (tetrachoric when both variables are binary). Estimates the correlation between the two continuous traits assumed to underlie the observed categorical variables."
+  )
+
+  chosen <- if (identical(m, auto$method)) {
+    paste0("<p>Using the <b>", .validity_method_label(m), "</b> because ",
+           auto$reason, ".</p>")
+  } else {
+    paste0("<p>Using the <b>", .validity_method_label(m),
+           "</b> (your override; the scale types suggest <b>",
+           .validity_method_label(auto$method), "</b>).</p>")
+  }
+  HTML(paste0(detected, chosen, "<p>", blurb, "</p>"))
 })
+
+.validity_method_label <- function(m) {
+  switch(m,
+    pearson = "Pearson r", spearman = "Spearman rho", kendall = "Kendall tau",
+    biserial = "biserial correlation", pointbiserial = "point-biserial correlation",
+    polyserial = "polyserial correlation", polyserial_swapped = "polyserial correlation",
+    polychoric = "polychoric correlation", m
+  )
+}
 
 # ** Validity correlation table ####
 validity_table_Input <- reactive({
   pred <- validity_predictor()
   if (is.null(pred$values)) {
     return(list(txt = HTML("Predictor unavailable. See message above."),
-                pval = NA_real_, est = NA_real_, method = "none"))
+                pval = NA_real_, est = NA_real_, method = "none", caption = NULL))
   }
   ts <- pred$values
-  cv <- as.numeric(unlist(criterion()))
-  method <- input$validity_cor_method %||% "pearson"
+  cv <- suppressWarnings(as.numeric(unlist(criterion())))
+  method <- validity_method()
 
   ok <- complete.cases(ts, cv)
   ts <- ts[ok]; cv <- cv[ok]
-  n  <- length(ts)
+  n <- length(ts)
 
   fmt_num <- function(x) sub("^(-?)0\\.", "\\1.", sprintf("%.2f", x))
-  fmt_p   <- function(p) ifelse(p < .001, "<.001",
-                                 sub("^(-?)0\\.", "\\1.", sprintf("%.3f", p)))
+  fmt_p <- function(p) ifelse(p < .001, "<.001",
+                              sub("^(-?)0\\.", "\\1.", sprintf("%.3f", p)))
 
-  # Validation per method
-  ord_levels <- function(v) length(unique(v))
-  is_binary  <- function(v) length(setdiff(unique(v), NA)) == 2L
+  # Wald interval and test from an estimate and its standard error. Used for
+  # the latent-correlation estimators, which have no closed-form cor.test.
+  wald <- function(est, se) {
+    if (!is.finite(se) || se <= 0) return(list(pval = NA_real_, ci = NULL))
+    z <- est / se
+    list(pval = 2 * stats::pnorm(-abs(z)),
+         ci = est + c(-1, 1) * stats::qnorm(0.975) * se)
+  }
 
   res <- tryCatch({
-    if (method %in% c("pearson", "spearman", "kendall")) {
-      ct <- cor.test(ts, cv, method = method, exact = FALSE)
+    if (method %in% c("pearson", "spearman", "kendall", "pointbiserial")) {
+      cm <- if (method == "pointbiserial") "pearson" else method
+      ct <- cor.test(ts, cv, method = cm, exact = FALSE)
       est <- as.numeric(ct$estimate); pval <- ct$p.value
-      sym <- switch(method, pearson = "r", spearman = "&rho;", kendall = "&tau;")
-      txt <- paste0("<em>", sym, "</em> = ", fmt_num(est),
-                    ", <em>p</em> = ", fmt_p(pval),
+      sym <- switch(method, pearson = "<em>r</em>", spearman = "<em>&rho;</em>",
+                    kendall = "<em>&tau;</em>", "<em>r<sub>pb</sub></em>")
+      txt <- paste0(sym, " = ", fmt_num(est), ", <em>p</em> = ", fmt_p(pval),
                     ", <em>n</em> = ", n)
-      if (method == "pearson" && !is.null(ct$conf.int)) {
-        txt <- paste0(txt, ", 95% CI [", fmt_num(ct$conf.int[1]),
-                      ", ", fmt_num(ct$conf.int[2]), "]")
+      if (!is.null(ct$conf.int)) {
+        txt <- paste0(txt, ", 95% CI [", fmt_num(ct$conf.int[1]), ", ",
+                      fmt_num(ct$conf.int[2]), "]")
       }
       list(txt = HTML(txt), pval = pval, est = est, method = method)
-    } else if (method == "polychoric") {
-      # both must be ordinal with > 1 category; psych::polychoric refuses
-      # >8 categories on either variable
-      if (ord_levels(ts) > 8 || ord_levels(cv) > 8) {
-        return(list(txt = HTML("<span style='color:#cc6600'>Polychoric requires both variables to be ordinal with at most 8 categories each (psych::polychoric). The selected predictor or criterion has more — consider Spearman/Kendall, or use a coarser ordinal predictor.</span>"),
-                    pval = NA, est = NA, method = method))
-      }
-      est <- suppressWarnings(psych::polychoric(cbind(ts, cv))$rho[1, 2])
-      txt <- paste0("Polychoric &rho; = ", fmt_num(est),
-                    ", <em>n</em> = ", n,
-                    " <span style='color:#888;'>(no parametric significance test)</span>")
-      list(txt = HTML(txt), pval = NA, est = est, method = method)
-    } else if (method == "polyserial") {
-      # predictor continuous, criterion ordinal
-      if (ord_levels(cv) > 8) {
-        return(list(txt = HTML("<span style='color:#cc6600'>Polyserial expects an ordinal criterion (≤ 8 levels). Switch to Pearson or Spearman if the criterion is truly continuous.</span>"),
-                    pval = NA, est = NA, method = method))
-      }
-      est <- suppressWarnings(psych::polyserial(as.matrix(ts), as.matrix(cv)))
-      est <- as.numeric(est)[1]
-      txt <- paste0("Polyserial &rho; = ", fmt_num(est),
-                    ", <em>n</em> = ", n,
-                    " <span style='color:#888;'>(no parametric significance test)</span>")
-      list(txt = HTML(txt), pval = NA, est = est, method = method)
+
     } else if (method == "biserial") {
-      if (!is_binary(cv)) {
-        return(list(txt = HTML("<span style='color:#cc6600'>Biserial requires a binary (two-value) criterion variable.</span>"),
-                    pval = NA, est = NA, method = method))
-      }
-      est <- psych::biserial(ts, cv)
-      txt <- paste0("Biserial <em>r<sub>b</sub></em> = ", fmt_num(est),
-                    ", <em>n</em> = ", n,
-                    " <span style='color:#888;'>(no parametric significance test)</span>")
-      list(txt = HTML(txt), pval = NA, est = est, method = method)
-    } else if (method == "pointbiserial") {
-      if (!is_binary(cv)) {
-        return(list(txt = HTML("<span style='color:#cc6600'>Point-biserial requires a binary (two-value) criterion variable.</span>"),
-                    pval = NA, est = NA, method = method))
-      }
+      est <- as.numeric(psych::biserial(ts, cv))[1]
+      # r_b is a strictly positive multiple of r_pb, so they share the null
+      # H0: rho = 0 and the point-biserial test is a valid test of it.
       ct <- cor.test(ts, cv, method = "pearson", exact = FALSE)
-      est <- as.numeric(ct$estimate); pval <- ct$p.value
-      txt <- paste0("Point-biserial <em>r<sub>pb</sub></em> = ", fmt_num(est),
-                    ", <em>p</em> = ", fmt_p(pval),
-                    ", <em>n</em> = ", n,
-                    ", 95% CI [", fmt_num(ct$conf.int[1]), ", ",
-                    fmt_num(ct$conf.int[2]), "]")
-      list(txt = HTML(txt), pval = pval, est = est, method = method)
+      txt <- paste0("<em>r<sub>b</sub></em> = ", fmt_num(est),
+                    ", <em>p</em> = ", fmt_p(ct$p.value), ", <em>n</em> = ", n,
+                    " <span style='color:#888;'>(<em>p</em> from the equivalent point-biserial test; ",
+                    "<em>r<sub>pb</sub></em> = ", fmt_num(as.numeric(ct$estimate)), ")</span>")
+      list(txt = HTML(txt), pval = ct$p.value, est = est, method = method)
+
+    } else if (method %in% c("polyserial", "polyserial_swapped")) {
+      cont <- if (method == "polyserial") ts else cv
+      ord <- if (method == "polyserial") cv else ts
+      fit <- polycor::polyserial(cont, ord, std.err = TRUE)
+      est <- as.numeric(fit$rho); se <- sqrt(fit$var[1, 1])
+      w <- wald(est, se)
+      txt <- paste0("Polyserial <em>&rho;</em> = ", fmt_num(est),
+                    ", <em>SE</em> = ", fmt_num(se),
+                    ", <em>p</em> = ", fmt_p(w$pval), ", <em>n</em> = ", n)
+      if (!is.null(w$ci)) txt <- paste0(txt, ", 95% CI [", fmt_num(w$ci[1]),
+                                        ", ", fmt_num(w$ci[2]), "]")
+      list(txt = HTML(txt), pval = w$pval, est = est, method = method)
+
+    } else if (method == "polychoric") {
+      fit <- polycor::polychor(ts, cv, std.err = TRUE)
+      est <- as.numeric(fit$rho); se <- sqrt(fit$var[1, 1])
+      w <- wald(est, se)
+      lab <- if (validity_types()$criterion == "binary" &&
+                 identical(validity_types()$predictor, "binary")) "Tetrachoric" else "Polychoric"
+      txt <- paste0(lab, " <em>&rho;</em> = ", fmt_num(est),
+                    ", <em>SE</em> = ", fmt_num(se),
+                    ", <em>p</em> = ", fmt_p(w$pval), ", <em>n</em> = ", n)
+      if (!is.null(w$ci)) txt <- paste0(txt, ", 95% CI [", fmt_num(w$ci[1]),
+                                        ", ", fmt_num(w$ci[2]), "]")
+      list(txt = HTML(txt), pval = w$pval, est = est, method = method)
+
     } else {
-      list(txt = HTML(""), pval = NA, est = NA, method = method)
+      list(txt = HTML(""), pval = NA_real_, est = NA_real_, method = method)
     }
   }, error = function(e) {
-    list(txt = HTML(paste0("<span style='color:#cc0000'>Could not compute correlation: ",
-                            conditionMessage(e), "</span>")),
-         pval = NA, est = NA, method = method)
+    list(txt = HTML(paste0("<span style='color:#cc0000'>Could not compute the correlation: ",
+                           conditionMessage(e), "</span>")),
+         pval = NA_real_, est = NA_real_, method = method)
   })
+
+  res$caption <- if (is.na(res$est)) NULL else {
+    paste0(.validity_method_label(res$method), " = ", fmt_num(res$est),
+           if (!is.na(res$pval)) paste0(", p ", if (res$pval < .001) "< .001"
+                                        else paste0("= ", fmt_p(res$pval))) else "",
+           ", n = ", n)
+  }
   res
 })
-
 # * Output validity correlation table ####
 output$validity_table <- renderUI({
   validity_table_Input()$txt

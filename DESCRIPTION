@@ -55,6 +55,7 @@ Suggests:
     latticeExtra,
     ltm,
     plotly,
+    polycor,
     rmarkdown,
     shiny (>= 1.6.0),
     shinyBS,

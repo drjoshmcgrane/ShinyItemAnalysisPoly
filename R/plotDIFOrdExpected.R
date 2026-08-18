@@ -54,7 +54,7 @@
 #' @importFrom ggplot2 ggplot aes geom_line geom_point scale_colour_manual
 #'   scale_linetype_manual scale_fill_manual scale_y_continuous xlab ylab
 #'   ggtitle guides guide_legend theme unit
-#' @importFrom stats quantile
+#' @importFrom stats quantile predict
 #'
 #' @export
 plotDIFOrdExpected <- function(x, item = 1, item.name, group.names,

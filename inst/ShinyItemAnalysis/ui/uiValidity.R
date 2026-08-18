@@ -26,29 +26,26 @@ uiValidity <-
           )
         ),
         column(
-          3,
-          selectInput(
-            inputId = "validity_cor_method",
-            label = "Correlation method",
-            choices = c(
-              "Pearson (interval predictor, interval criterion)" = "pearson",
-              "Spearman rank (ρ; ordinal-friendly)" = "spearman",
-              "Kendall rank (τ; ordinal alternative)" = "kendall",
-              "Polychoric (ordinal predictor, ordinal criterion)" = "polychoric",
-              "Polyserial (continuous predictor, ordinal criterion)" = "polyserial",
-              "Biserial (continuous predictor, binary criterion, assumes underlying normal)" = "biserial",
-              "Point-biserial (continuous predictor, binary criterion)" = "pointbiserial"
-            ),
-            selected = "pearson"
+          4,
+          checkboxInput(
+            inputId = "validity_override",
+            label = "Choose the coefficient myself",
+            value = FALSE
+          ),
+          conditionalPanel(
+            condition = "input.validity_override == true",
+            uiOutput("validity_method_selector")
           )
         )
       ),
       htmlOutput("validity_predictor_warning"),
-      h4("Descriptive plot of criterion variable on the chosen predictor"),
+      h4("Descriptive plot of the criterion on the chosen predictor"),
       p(
-        "The predictor is plotted on the x-axis and the criterion on the y-axis. ",
-        "A boxplot is shown when the criterion looks discrete (six or fewer distinct values); ",
-        "otherwise a scatterplot with a red linear regression line is shown."
+        "The predictor is plotted on the x-axis. The plot is matched to the ",
+        "criterion's scale type: a fitted probability curve for a binary ",
+        "criterion, a boxplot across criterion levels for an ordinal one, and ",
+        "a scatterplot with a linear fit for a continuous one. The reported ",
+        "coefficient is repeated beneath the plot title."
       ),
       plotlyOutput("validity_plot"),
       downloadButton(outputId = "DB_validity_plot", label = "Download figure"),
