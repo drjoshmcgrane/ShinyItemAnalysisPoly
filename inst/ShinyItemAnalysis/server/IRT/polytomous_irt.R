@@ -50,8 +50,11 @@ IRT_poly_model_grm <- reactive({
 # ** RSM model ####
 IRT_poly_model_rsm <- reactive({
   data <- ordinal()
-  # RSM requires all items to have the same number of response categories
-  n_cats <- sapply(data, function(x) length(unique(x)))
+  # RSM requires all items to have the same number of response categories.
+  # Count observed categories only: unique() keeps NA, so an item with any
+  # missing value would otherwise look like it has one extra category and
+  # wrongly block the fit.
+  n_cats <- sapply(data, function(x) length(unique(x[!is.na(x)])))
   validate(
     need(
       length(unique(n_cats)) == 1,
