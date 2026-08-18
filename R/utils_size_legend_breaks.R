@@ -1,9 +1,8 @@
+# Three representative size breaks for the marker-count legend, anchored to
+# the actual bin-count distribution in the data being analysed (smallest,
+# median, largest), rounded to a sensible step size given the spread.
 #' @keywords internal
 #' @noRd
-#'
-#' Three representative size breaks for the marker-count legend, anchored to
-#' the actual bin-count distribution in the data being analysed (smallest,
-#' median, largest), rounded to a sensible step size given the spread.
 .size_legend_breaks <- function(counts) {
   counts <- counts[is.finite(counts)]
   if (length(counts) == 0L) return(NULL)

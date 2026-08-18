@@ -22,7 +22,7 @@ A list with \eqn{\alpha} estimate and optionally CI.
 So far internal function.
 }
 \examples{
-ShinyItemAnalysis:::cronbach_alpha(HCI[, 1:20])
+ShinyItemAnalysisPoly:::cronbach_alpha(HCI[, 1:20])
 
 }
 \keyword{internal}

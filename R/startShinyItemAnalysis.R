@@ -44,7 +44,7 @@ startShinyItemAnalysis <- function(background = TRUE, ...) {
   run_app_script <- '
   appDir <- system.file("ShinyItemAnalysis", package = "ShinyItemAnalysisPoly")
   if (appDir == "") {
-    stop("Could not find the app. Try re-installing `ShinyItemAnalysis`.", call. = FALSE)
+    stop("Could not find the app. Try re-installing `ShinyItemAnalysisPoly`.", call. = FALSE)
   }
   shiny::runApp(appDir, display.mode = "normal", launch.browser = TRUE)
   '

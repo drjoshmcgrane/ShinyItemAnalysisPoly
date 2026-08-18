@@ -11,3 +11,10 @@
 ^_pkgdown\.yml$
 ^docs$
 ^\.claude$
+^LICENSE$
+^HANDOVER\.md$
+^ShinyItemAnalysisPoly\.R$
+^tests/manual$
+^Rplots\.pdf$
+^[^/]*\.csv$
+^\.gitignore$

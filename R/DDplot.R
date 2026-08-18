@@ -98,7 +98,7 @@
 #' Computer Science and Information Systems.
 #'
 #' @seealso
-#' [ShinyItemAnalysis::gDiscrim()] for calculation of generalized ULI \cr
+#' [gDiscrim()] for calculation of generalized ULI \cr
 #' [ggplot2::ggplot()] for general function to plot a `"ggplot"` object
 #'
 #' @examples

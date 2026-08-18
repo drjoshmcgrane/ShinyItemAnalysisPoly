@@ -23,7 +23,7 @@ require(psych)
 require(rmarkdown)
 require(shiny)
 require(shinyBS)
-require(ShinyItemAnalysis)
+require(ShinyItemAnalysisPoly)
 require(shinyjs)
 require(stringr) # could be replaced by base regex
 require(tidyr)

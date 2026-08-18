@@ -14,7 +14,7 @@
 #' @keywords internal
 #'
 #' @examples
-#' ShinyItemAnalysis:::cronbach_alpha(HCI[, 1:20])
+#' ShinyItemAnalysisPoly:::cronbach_alpha(HCI[, 1:20])
 #'
 cronbach_alpha <- function(Data, ci = TRUE, ci_lvl = .95) {
   x <- na.exclude(as.matrix(Data))

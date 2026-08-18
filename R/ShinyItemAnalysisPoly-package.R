@@ -1,6 +1,12 @@
-#' ShinyItemAnalysis: Test and Item Analysis via Shiny
+#' ShinyItemAnalysisPoly: Test and Item Analysis via Shiny (Extended Polytomous IRT Fork)
 #'
-#' @description The `ShinyItemAnalysis` package contains an interactive Shiny
+#' @description The `ShinyItemAnalysisPoly` package is a fork of
+#' `ShinyItemAnalysis` with extended polytomous IRT model support (GRM, RSM,
+#' PCM, GPCM) alongside the existing NRM, unified model selection, model
+#' comparison with LRT, Wright maps, observed proportion overlays, and
+#' mixed-category data handling.
+#'
+#' Like the original, the package contains an interactive Shiny
 #' application for the psychometric analysis of educational tests, psychological
 #' assessments, health-related and other types of multi-item measurements, or
 #' ratings from multiple raters, which can be accessed using function
