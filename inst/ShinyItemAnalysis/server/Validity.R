@@ -2,6 +2,8 @@
 # VALIDITY ####
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+source("server/validity_helpers.R", local = T, encoding = "UTF-8")
+
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * CORRELATION STRUCTURE ####
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -644,17 +646,20 @@ validity_predictor <- reactive({
                 label  = "Standardized total score (z)"))
   }
   if (choice == "theta") {
-    # Explicitly dispatch on the data type set in the Data tab: "binary"
-    # → dichotomous IRT fscores; "ordinal" → polytomous IRT fscores;
-    # anything else (continuous etc.) → not applicable.
+    # Explicitly dispatch on the data type set in the Data tab. Note that
+    # "nominal" data (GMAT, HCI, MSAT-B, Medical 100, and the default choice
+    # for uploaded data) is scored to binary with the key via key2binary, so
+    # it is analysed by the *dichotomous* IRT model just like "binary" — see
+    # .validity_theta_model(). "ordinal" → polytomous IRT fscores; anything
+    # else (continuous etc.) → not applicable.
     dtype <- tryCatch(data_type(), error = function(e) NA_character_)
-    if (identical(dtype, "binary")) {
+    if (identical(.validity_theta_model(dtype), "dichotomous")) {
       fs <- tryCatch(IRT_binary_fscores_raw(), error = function(e) NULL)
       if (!is.null(fs)) {
         return(list(values = as.numeric(fs[, 1]),
                     label  = "IRT θ (dichotomous)"))
       }
-    } else if (identical(dtype, "ordinal")) {
+    } else if (identical(.validity_theta_model(dtype), "polytomous")) {
       fs <- tryCatch(IRT_poly_fscores_raw(), error = function(e) NULL)
       if (!is.null(fs)) {
         return(list(values = as.numeric(fs[, 1]),
@@ -673,9 +678,9 @@ output$validity_predictor_warning <- renderUI({
   p <- validity_predictor()
   if (is.null(p$values)) {
     dtype <- p$dtype %||% NA_character_
-    tab_hint <- if (identical(dtype, "binary")) {
+    tab_hint <- if (identical(.validity_theta_model(dtype), "dichotomous")) {
       "the <em>IRT models → Dichotomous</em> tab"
-    } else if (identical(dtype, "ordinal")) {
+    } else if (identical(.validity_theta_model(dtype), "polytomous")) {
       "the <em>IRT models → Polytomous</em> tab"
     } else if (identical(dtype, "continuous")) {
       "IRT θ is not applicable to continuous (non-categorical) item data"
