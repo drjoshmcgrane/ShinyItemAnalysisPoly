@@ -41,11 +41,23 @@
 # For mixed poly+dich data, fold each binary item's difficulty from
 # column 'b' into 'b1' and drop columns b, g, u from par_tab.
 .fold_binary_pars <- function(par_tab) {
-  if ("b" %in% colnames(par_tab) && "b1" %in% colnames(par_tab)) {
-    b_col  <- par_tab[, "b"]
-    b1_col <- par_tab[, "b1"]
-    needs  <- !is.na(b_col) & is.na(b1_col)
-    par_tab[needs, "b1"] <- b_col[needs]
+  if ("b" %in% colnames(par_tab)) {
+    if ("b1" %in% colnames(par_tab)) {
+      # Mixed poly + dichotomous: only the binary items carry a 'b'.
+      b_col  <- par_tab[, "b"]
+      b1_col <- par_tab[, "b1"]
+      needs  <- !is.na(b_col) & is.na(b1_col)
+      par_tab[needs, "b1"] <- b_col[needs]
+    } else {
+      # EVERY item is binary, so mirt returned the dichotomous
+      # parameterisation (a/b/g/u) with no b1 at all. A binary item is a
+      # single-threshold item: rename 'b' to 'b1' so it flows through the
+      # polytomous table and Wright map code unchanged. Without this the
+      # threshold matrix ends up with zero columns, which fails downstream
+      # in .interleave_with_ses() and in ggplot().
+      colnames(par_tab)[colnames(par_tab) == "b"] <- "b1"
+      return(par_tab[, !colnames(par_tab) %in% c("g", "u"), drop = FALSE])
+    }
   }
   drop_cols <- intersect(c("b", "g", "u"), colnames(par_tab))
   par_tab[, !colnames(par_tab) %in% drop_cols, drop = FALSE]
@@ -235,6 +247,24 @@ italicise_colnames <- function(tab) {
   }
   colnames(tab) <- nms
   tab
+}
+
+# Build the item x threshold matrix the Wright map plots, from the IRTpars
+# item parameter matrix returned by mirt for a PCM/GPCM fit.
+#
+# mirt names the step difficulties b1, b2, ... - but only while at least one
+# item has three or more categories. Fit itemtype = "Rasch" to data whose items
+# are ALL binary and mirt drops to the dichotomous parameterisation instead,
+# returning a/b/g/u with the difficulty in a bare `b` and no b1 at all. A binary
+# item is simply a single-threshold item, so promote that `b` to b1 rather than
+# returning a zero-column matrix, which renders no Wright map at all.
+#
+# The same `b` column appears alongside b1..bn for *mixed* data, where it holds
+# the difficulty of the binary items only; there it is folded into b1.
+.poly_threshold_matrix <- function(pars, model) {
+  folded <- .fold_binary_pars(pars)
+  b_cols <- grep("^b\\d", colnames(folded))
+  folded[, b_cols, drop = FALSE]
 }
 
 strip_katex <- function(tab) {

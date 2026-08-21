@@ -607,15 +607,11 @@ IRT_poly_wrightmap_args_reactive <- reactive({
     colnames(b) <- names(shared_b)
     rownames(b) <- rownames(pars)
   } else {
-    # PCM / GPCM: b columns are already item-specific thresholds
-    b <- pars[, b_cols, drop = FALSE]
-    # Mixed-category data: binary items have difficulty in 'b', not 'b1'
-    # Copy b -> b1 so binary items appear on the Wright map
-    if ("b" %in% colnames(pars) && "b1" %in% colnames(b)) {
-      b_col <- pars[, "b"]
-      needs_copy <- !is.na(b_col) & is.na(b[, "b1"])
-      b[needs_copy, "b1"] <- b_col[needs_copy]
-    }
+    # PCM / GPCM: b columns are already item-specific thresholds. Binary items
+    # are single-threshold items and belong on the map too, whether they are
+    # mixed in with polytomous ones or make up the whole test - see
+    # .poly_threshold_matrix().
+    b <- .poly_threshold_matrix(pars, model)
   }
 
   item.names <- item_names()
