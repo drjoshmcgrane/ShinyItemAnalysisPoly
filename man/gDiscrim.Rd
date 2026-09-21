@@ -55,6 +55,8 @@ score on the test. Number of groups, as well as upper and lower groups can be
 specified by user. You can also manually supply the maximal and minimal
 scores when the theoretical range of item score is known. Note that if the
 \emph{observed} item range is zero \code{NaN} is returned.
+If tied total scores prevent all requested groups from forming, or no
+complete responses remain, returns named \code{NA} values with a warning.
 }
 \details{
 The function computes total test scores for all respondents and then

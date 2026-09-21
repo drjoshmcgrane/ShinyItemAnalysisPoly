@@ -7,6 +7,8 @@
 #' specified by user. You can also manually supply the maximal and minimal
 #' scores when the theoretical range of item score is known. Note that if the
 #' *observed* item range is zero `NaN` is returned.
+#' If tied total scores prevent all requested groups from forming, or no
+#' complete responses remain, returns named `NA` values with a warning.
 #'
 #' @param Data matrix or data.frame of items to be examined. Rows represent
 #'   respondents, columns represent items.
@@ -99,6 +101,14 @@ gDiscrim <- function(Data, k = 3, l = 1, u = 3, maxscore, minscore, x, ...) {
   if (l >= u) {
     stop("'l' should be lower than 'u'. ", call. = FALSE)
   }
+  d <- na.exclude(Data)
+  unavailable <- function(reason) {
+    warning(paste0("ULI unavailable: ", reason), call. = FALSE)
+    setNames(rep(NA_real_, ncol(Data)), colnames(Data))
+  }
+  if (nrow(d) == 0L) {
+    return(unavailable("no complete response rows."))
+  }
   if (missing(maxscore)) {
     maxscore <- sapply(Data, max, na.rm = TRUE)
   } else {
@@ -126,8 +136,6 @@ gDiscrim <- function(Data, k = 3, l = 1, u = 3, maxscore, minscore, x, ...) {
     warning("'minscore' is higher than 'maxscore' for some item. ")
   }
 
-  d <- na.exclude(Data)
-
   # total scores
   ts <- rowSums(d)
 
@@ -136,11 +144,17 @@ gDiscrim <- function(Data, k = 3, l = 1, u = 3, maxscore, minscore, x, ...) {
 
   # assert dataset is breakable
   if (length(unique(breakpoints)) < k - 1) {
-    stop("Dataset cannot be split, there are too few unique cutpoints. ", call. = FALSE)
+    return(unavailable("tied total scores produce too few unique cutpoints."))
   }
 
   # cut total scores into k groups
   grp <- findInterval(ts, breakpoints, ...)
+
+  # Preserve quantile-group identities: split() otherwise drops empty groups
+  # and positional indexing can compare the wrong groups or exceed the list.
+  if (any(tabulate(grp + 1L, nbins = k) == 0L)) {
+    return(unavailable("tied total scores leave one or more score groups empty."))
+  }
 
   # range of scores
   rng <- maxscore - minscore

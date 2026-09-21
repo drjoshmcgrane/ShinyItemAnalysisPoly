@@ -197,7 +197,7 @@ output$itemanalysis_table_text <- renderUI({
     "<b>I-C cor.</b>&nbsp;",
     "&ndash; item-criterion correlation, ",
     "<b>ULI</b>&nbsp;",
-    "&ndash; Upper-Lower Index, ",
+    "&ndash; Upper-Lower Index (unavailable when tied total scores prevent the requested score groups from forming; other item statistics remain available), ",
     if (num.groups != 3 | range1 != 1 | range2 != 3) {
       paste0(
         "<b>gULI</b>&nbsp;",
