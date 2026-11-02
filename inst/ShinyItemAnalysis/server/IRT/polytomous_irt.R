@@ -519,7 +519,7 @@ output$IRT_poly_summary_ability <- renderTable(
 IRT_poly_reliability_reactive <- reactive({
   emp  <- tryCatch(mirt::empirical_rxx(IRT_poly_fscores_raw()),
                    error = function(e) NA_real_)
-  marg <- tryCatch(mirt::marginal_rxx(IRT_poly_model()),
+  marg <- tryCatch(ShinyItemAnalysisPoly:::marginal_rxx_latent(IRT_poly_model()),
                    error = function(e) NA_real_)
   list(method = IRT_poly_fscore_method(), empirical = emp, marginal = marg)
 })

@@ -720,7 +720,7 @@ output$IRT_binary_summary_ability <- renderTable(
 IRT_binary_reliability_reactive <- reactive({
   emp  <- tryCatch(mirt::empirical_rxx(IRT_binary_fscores_raw()),
                    error = function(e) NA_real_)
-  marg <- tryCatch(mirt::marginal_rxx(IRT_binary_model()),
+  marg <- tryCatch(ShinyItemAnalysisPoly:::marginal_rxx_latent(IRT_binary_model()),
                    error = function(e) NA_real_)
   list(method = IRT_binary_fscore_method(), empirical = emp, marginal = marg)
 })
