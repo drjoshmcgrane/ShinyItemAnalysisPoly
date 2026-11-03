@@ -653,17 +653,29 @@ validity_predictor <- reactive({
     # .validity_theta_model(). "ordinal" → polytomous IRT fscores; anything
     # else (continuous etc.) → not applicable.
     dtype <- tryCatch(data_type(), error = function(e) NA_character_)
-    if (identical(.validity_theta_model(dtype), "dichotomous")) {
-      fs <- tryCatch(IRT_binary_fscores_raw(), error = function(e) NULL)
-      if (!is.null(fs)) {
-        return(list(values = as.numeric(fs[, 1]),
-                    label  = "IRT θ (dichotomous)"))
+    model <- .validity_theta_model(dtype)
+    type <- if (identical(model, "dichotomous")) {
+      "binary"
+    } else if (identical(model, "polytomous")) {
+      "poly"
+    } else {
+      NA_character_
+    }
+    if (!is.na(type)) {
+      # θ only once the model has been fitted in the IRT models tab (see
+      # irt_fitted in IRT.R); until then warn and use the total score
+      if (!irt_fitted[[type]]) {
+        return(list(values = as.numeric(total_score()), label = "Total score",
+                    unfitted = type))
       }
-    } else if (identical(.validity_theta_model(dtype), "polytomous")) {
-      fs <- tryCatch(IRT_poly_fscores_raw(), error = function(e) NULL)
+      fs <- tryCatch(
+        if (type == "binary") IRT_binary_fscores_raw() else IRT_poly_fscores_raw(),
+        error = function(e) NULL
+      )
       if (!is.null(fs)) {
         return(list(values = as.numeric(fs[, 1]),
-                    label  = "IRT θ (polytomous)"))
+                    label  = paste0("IRT θ (", IRT_theta_source(type), ")"),
+                    source = type))
       }
     }
     return(list(values = NULL, label = "IRT θ",
@@ -676,6 +688,19 @@ validity_predictor <- reactive({
 # User-facing warning when the predictor or method is unusable for the data.
 output$validity_predictor_warning <- renderUI({
   p <- validity_predictor()
+  if (!is.null(p$unfitted)) {
+    return(HTML(paste0(
+      "<div style='color:#cc6600'>", IRT_theta_unfitted_text(p$unfitted),
+      " Until then, the total score is used.</div>"
+    )))
+  }
+  if (!is.null(p$source)) {
+    return(HTML(paste0(
+      "<div>\u03B8 is taken from the IRT models > ",
+      if (p$source == "binary") "Dichotomous" else "Polytomous",
+      " tab (", IRT_theta_source(p$source), ").</div>"
+    )))
+  }
   if (is.null(p$values)) {
     dtype <- p$dtype %||% NA_character_
     tab_hint <- if (identical(.validity_theta_model(dtype), "dichotomous")) {

@@ -24,6 +24,50 @@ IRT_binary_fscore_method <- reactive({
   if (isTRUE(input$IRT_binary_use_wle)) "WLE" else "EAP"
 })
 
+# ** Theta for other tabs (criterion validity, DIF matching) ####
+# Other tabs take theta from the IRT models tab, with the model and estimator set
+# there. They use it only once that tab has been opened for the current data,
+# which fits the model; until then they say so instead of silently fitting the
+# tab's default settings.
+irt_fitted <- reactiveValues(binary = FALSE, poly = FALSE)
+observeEvent(input$navbar, {
+  if (identical(input$navbar, "irt_dichotomous")) irt_fitted$binary <- TRUE
+  if (identical(input$navbar, "irt_polytomous")) irt_fitted$poly <- TRUE
+})
+# new data are loaded in the Data tab, so the models must be fitted again
+observeEvent(list(dataset$binary, dataset$ordinal), {
+  irt_fitted$binary <- FALSE
+  irt_fitted$poly <- FALSE
+})
+
+# model and estimator of that theta, e.g. "Rasch, WLE"
+IRT_theta_source <- function(type = c("binary", "poly")) {
+  if (match.arg(type) == "binary") {
+    paste0(input$IRT_binary_summary_model, ", ", IRT_binary_fscore_method())
+  } else {
+    paste0(input$IRT_poly_model, ", ", IRT_poly_fscore_method())
+  }
+}
+
+# message shown while the model has not been fitted in its tab
+IRT_theta_unfitted_text <- function(type = c("binary", "poly")) {
+  type <- match.arg(type)
+  paste0(
+    "IRT \u03B8 is used only after the model has been fitted in the IRT models > ",
+    if (type == "binary") "Dichotomous" else "Polytomous",
+    " tab (current settings there: ", IRT_theta_source(type), "). Open that tab to fit it."
+  )
+}
+
+# stop a theta-based analysis until the model has been fitted in its tab
+need_irt_theta <- function(type = c("binary", "poly")) {
+  type <- match.arg(type)
+  validate(
+    need(irt_fitted[[type]], paste(IRT_theta_unfitted_text(type), "Or choose another matching criterion.")),
+    errorClass = "validation-warning"
+  )
+}
+
 # ** Helper function for consistent colors ####
 gg_color_hue <- function(n) {
   hues <- seq(15, 375, length = n + 1)

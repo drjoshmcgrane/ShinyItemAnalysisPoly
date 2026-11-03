@@ -2077,6 +2077,7 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
   } else if (val == "zuploaded") {
     scale(apply(as.data.frame(unlist(DIFmatching())), 1, sum))
   } else if (val == "theta") {
+    need_irt_theta("binary")
     as.vector(IRT_binary_fscores_raw()[, 1])
   } else {
     val  # "score" or "zscore"
@@ -2089,6 +2090,7 @@ DIF_logistic_model <- reactive({
   data <- data.frame(binary())
 
   matching_val <- input$DIF_logistic_summary_matching
+  if (matching_val == "theta") need_irt_theta("binary") # fitted in the IRT tab
   purify_on <- isTRUE(input$DIF_logistic_summary_purification)
 
   if (matching_val == "theta" && purify_on) {
@@ -2334,7 +2336,7 @@ DIF_logistic_summary_table_note <- reactive({
   thr <- DIF_logistic_model()$thr
 
   res$matching <- paste("Matching criterion:", if (input$DIF_logistic_summary_matching == "theta") {
-    "IRT \u03B8"
+    paste0("IRT \u03B8 (", IRT_theta_source("binary"), ")")
   } else {
     switch(fit$match,
       "score" = "total score",
@@ -2497,6 +2499,34 @@ output$DIF_logistic_items_NA_warning <- renderUI({
   HTML(txt)
 })
 
+# Hover text for the DIF Items plots, built from the plotted data (the plot
+# functions map no text aesthetic): curves give the matching value and the
+# model value, observed points the bin mean of the matching variable, the
+# observed mean and the bin n. Values to three decimals.
+.dif_items_hover <- function(p, g, match_label, curve_label, point_label,
+                             group_labels = c("Reference", "Focal")) {
+  pts <- Filter(function(l) inherits(l$geom, "GeomPoint"), g$layers)
+  emp <- if (length(pts)) pts[[1]]$data else NULL
+  f3 <- function(v) sprintf("%.3f", v)
+  for (i in seq_along(p$x$data)) {
+    d <- p$x$data[[i]]
+    code <- regmatches(d$name %||% "", regexpr("gr[12]", d$name %||% ""))
+    if (!length(code) || is.null(d$x)) next
+    grp <- group_labels[match(code, c("gr1", "gr2"))]
+    p$x$data[[i]]$text <- if (identical(d$mode, "markers") && !is.null(emp)) {
+      e <- emp[emp$Group == code, ]
+      n <- e$Count[match(round(d$x, 8), round(e[[1]], 8))] # e[[1]]: bin mean of the matching variable
+      paste0("Group: ", grp, "<br />", match_label, " (bin mean): ", f3(d$x),
+             "<br />", point_label, ": ", f3(d$y), "<br />n: ", n)
+    } else {
+      paste0("Group: ", grp, "<br />", match_label, ": ", f3(d$x),
+             "<br />", curve_label, ": ", f3(d$y))
+    }
+    p$x$data[[i]]$hoverinfo <- "text"
+  }
+  p
+}
+
 # ** Plot ####
 DIF_logistic_items_plot <- reactive({
   group <- unlist(group())
@@ -2557,6 +2587,11 @@ output$DIF_logistic_items_plot <- renderPlotly({
     "Matching criterion"
   )
 
+  p <- .dif_items_hover(p, g, match_label,
+    curve_label = "Probability of correct answer",
+    point_label = "Observed proportion correct"
+  )
+
   # Rebuild legend: rename traces to clean group labels, hide marker traces
   # from the legend (they already share a colour with the line) so plotly
   # shows two horizontal entries: "Reference" and "Focal".
@@ -2569,16 +2604,6 @@ output$DIF_logistic_items_plot <- renderPlotly({
     p$x$data[[i]]$name <- grp
     p$x$data[[i]]$legendgroup <- grp
     p$x$data[[i]]$showlegend <- is_line
-
-    txt <- d$text
-    if (!is.null(txt)) {
-      txt <- gsub("gr1", group_labels[1], txt)
-      txt <- gsub("gr2", group_labels[2], txt)
-      txt <- gsub("Score", match_label, txt)
-      txt <- gsub("Probability", "Probability of correct answer", txt)
-      txt <- lapply(strsplit(txt, split = "<br />"), unique)
-      p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
-    }
   }
 
   p$elementId <- NULL
@@ -3076,6 +3101,7 @@ DIF_NLR_method <- reactive({
   est_method <- input$DIF_NLR_summary_method
 
   matching_val <- input$DIF_NLR_summary_matching
+  if (matching_val == "theta") need_irt_theta("binary") # fitted in the IRT tab
 
   if (matching_val == "theta" && isTRUE(purify)) {
     itemtype <- input$IRT_binary_summary_model %||% "2PL"
@@ -3342,7 +3368,7 @@ DIF_NLR_summary_table_note <- reactive({
   ))
 
   res$dmv <- paste("Matching criterion:", if (input$DIF_NLR_summary_matching == "theta") {
-    "IRT \u03B8"
+    paste0("IRT \u03B8 (", IRT_theta_source("binary"), ")")
   } else {
     switch(as.character(model$match[1]),
       "score" = "total score",
@@ -5600,6 +5626,7 @@ DIF_cumulative_method <- reactive({
   corr <- input$DIF_cumulative_summary_correction
 
   matching_val <- input$DIF_cumulative_summary_matching
+  if (matching_val == "theta") need_irt_theta("poly") # fitted in the IRT tab
 
   if (matching_val == "theta" && isTRUE(puri)) {
     fit <- .difORD_theta_puri(
@@ -5825,7 +5852,7 @@ DIF_cumulative_summary_table_note <- reactive({
   res$matching <- paste(
     "Matching criterion:",
     switch(input$DIF_cumulative_summary_matching,
-      "theta"  = "IRT \u03B8",
+      "theta"  = paste0("IRT \u03B8 (", IRT_theta_source("poly"), ")"),
       "score"  = "total score",
       "zscore" = "standardized total score",
       "uploaded"
@@ -6024,6 +6051,11 @@ output$DIF_cumulative_items_plot_expected <- renderPlotly({
     "Matching criterion"
   )
 
+  p <- .dif_items_hover(p, g, match_label,
+    curve_label = "Expected item score",
+    point_label = "Observed mean item score"
+  )
+
   group_labels <- c("Reference", "Focal")
   for (i in seq_along(p$x$data)) {
     d <- p$x$data[[i]]
@@ -6033,16 +6065,6 @@ output$DIF_cumulative_items_plot_expected <- renderPlotly({
     p$x$data[[i]]$name <- grp
     p$x$data[[i]]$legendgroup <- grp
     p$x$data[[i]]$showlegend <- is_line
-
-    txt <- d$text
-    if (!is.null(txt)) {
-      txt <- gsub("gr1", group_labels[1], txt)
-      txt <- gsub("gr2", group_labels[2], txt)
-      txt <- gsub("Match", match_label, txt)
-      txt <- gsub("Expected", "Expected item score", txt)
-      txt <- lapply(strsplit(txt, split = "<br />"), unique)
-      p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
-    }
   }
 
   p$elementId <- NULL
@@ -6359,6 +6381,7 @@ DIF_adjacent_model <- reactive({
   corr <- input$DIF_adjacent_summary_correction
 
   matching_val <- input$DIF_adjacent_summary_matching
+  if (matching_val == "theta") need_irt_theta("poly") # fitted in the IRT tab
 
   if (matching_val == "theta" && isTRUE(puri)) {
     fit <- .difORD_theta_puri(
@@ -6510,7 +6533,7 @@ DIF_adjacent_summary_table_note <- reactive({
   res$matching <- paste(
     "Matching criterion:",
     switch(input$DIF_adjacent_summary_matching,
-      "theta"  = "IRT \u03B8",
+      "theta"  = paste0("IRT \u03B8 (", IRT_theta_source("poly"), ")"),
       "score"  = "total score",
       "zscore" = "standardized total score",
       "uploaded"
@@ -6707,16 +6730,10 @@ output$DIF_adjacent_items_plot <- renderPlotly({
     "Matching criterion"
   )
 
-  for (i in seq_along(p$x$data)) {
-    txt <- p$x$data[[i]]$text
-    if (is.null(txt)) next
-    txt <- gsub("gr1", "Reference", txt)
-    txt <- gsub("gr2", "Focal", txt)
-    txt <- gsub("Match", match_label, txt)
-    txt <- gsub("Expected", "Expected item score", txt)
-    txt <- lapply(strsplit(txt, split = "<br />"), unique)
-    p$x$data[[i]]$text <- unlist(lapply(txt, paste, collapse = "<br />"))
-  }
+  p <- .dif_items_hover(p, g, match_label,
+    curve_label = "Expected item score",
+    point_label = "Observed mean item score"
+  )
 
   p$elementId <- NULL
   p |>
@@ -7010,6 +7027,7 @@ DIF_multinomial_method <- reactive({
   corr <- input$DIF_multinomial_summary_correction
 
   matching_val <- input$DIF_multinomial_summary_matching
+  if (matching_val == "theta") need_irt_theta("binary") # fitted in the IRT tab
 
   if (matching_val == "theta" && isTRUE(puri)) {
     itemtype <- input$IRT_binary_summary_model %||% "2PL"
@@ -7195,7 +7213,7 @@ DIF_multinomial_summary_table_note <- reactive({
   res$matching <- paste(
     "DDF matching variable:",
     switch(input$DIF_multinomial_summary_matching,
-      "theta"  = "IRT \u03B8",
+      "theta"  = paste0("IRT \u03B8 (", IRT_theta_source("binary"), ")"),
       "score"  = "total score",
       "zscore" = "standardized total score",
       "uploaded"
