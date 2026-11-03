@@ -310,6 +310,27 @@ observeEvent(c(input$data_toydata, data_csvdata_current_status$unloaded == 1), {
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * LOADING DATA FROM CSV FILES ####
 
+# Read a file with one value per item (key, cut-score, minimal or maximal
+# values) with or without a header row. The Header setting is used unless it
+# fails to give one value per item and the opposite setting does. For a valid
+# file in one row or one column, the wrong setting gives 0, 2n, n - 1 or n + 1
+# values, so a valid file cannot be misread.
+read_item_values_csv <- function(path, n_items) {
+  read_with <- function(header) {
+    read.csv(path,
+      header = header,
+      sep = input$data_csvdata_sep,
+      quote = input$data_csvdata_quote
+    )
+  }
+  values <- read_with(input$data_csvdata_header)
+  if (length(unlist(values)) != n_items) {
+    other <- tryCatch(read_with(!input$data_csvdata_header), error = function(e) NULL)
+    if (length(unlist(other)) == n_items) values <- other
+  }
+  values
+}
+
 # toy data is uploaded when user clicks on "Upload data" button
 observeEvent(input$data_upload, {
   csvdata_data <- NULL
@@ -373,11 +394,8 @@ observeEvent(input$data_upload, {
         }
       } else {
         # otherwise, value is read from csv file for each item
-        csvdata_minimal <- read.csv(
-          input$data_csvdata_minimal$datapath,
-          header = input$data_csvdata_header,
-          sep = input$data_csvdata_sep,
-          quote = input$data_csvdata_quote
+        csvdata_minimal <- read_item_values_csv(
+          input$data_csvdata_minimal$datapath, ncol(csvdata_data)
         )
       }
 
@@ -398,11 +416,8 @@ observeEvent(input$data_upload, {
         }
       } else {
         # otherwise, value is read from csv file for each item
-        csvdata_maximal <- read.csv(
-          input$data_csvdata_maximal$datapath,
-          header = input$data_csvdata_header,
-          sep = input$data_csvdata_sep,
-          quote = input$data_csvdata_quote
+        csvdata_maximal <- read_item_values_csv(
+          input$data_csvdata_maximal$datapath, ncol(csvdata_data)
         )
       }
     }
@@ -436,11 +451,8 @@ observeEvent(input$data_upload, {
       }
     } else {
       # otherwise it is uploaded from the csv file
-      csvdata_key <- read.csv(
-        data_csvdata_key_in_use$datapath,
-        header = input$data_csvdata_header,
-        sep = input$data_csvdata_sep,
-        quote = input$data_csvdata_quote
+      csvdata_key <- read_item_values_csv(
+        data_csvdata_key_in_use$datapath, ncol(csvdata_data)
       )
       csvdata_key <- as.character(unlist(csvdata_key))
     }

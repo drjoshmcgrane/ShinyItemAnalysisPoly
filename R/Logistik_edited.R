@@ -9,8 +9,10 @@
 .Logistik_edited <- function(data, member, member.type = "group", match = "score",
                              anchor = 1:ncol(data), type = "both", criterion = "LRT",
                              all.cov = FALSE) {
-  R2 <- function(m, n) 1 - (exp(-m$null.deviance / 2 + m$deviance / 2))^(2 / n)
-  R2max <- function(m, n) 1 - (exp(-m$null.deviance / 2))^(2 / n)
+  # Nagelkerke R2 in the form used by difR 6.1.0; exp(-D / 2)^(2 / n)
+  # underflows to 0 for large deviances
+  R2 <- function(m, n) 1 - exp(-m$null.deviance / n + m$deviance / n)
+  R2max <- function(m, n) 1 - exp(-m$null.deviance / n)
   R2DIF <- function(m, n) R2(m, n) / R2max(m, n)
   dev <- R2full <- R2simple <- deltaR <- NULL
   mFull <- mSimple <- seFull <- seSimple <- matrix(

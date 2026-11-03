@@ -1595,6 +1595,7 @@ difLogistic_theta_puri <- function(Data, group, focal.name, type,
   difPur <- NULL
   fit <- NULL
   iter <- 0L
+  converged <- no_anchor <- FALSE
 
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
@@ -1615,21 +1616,50 @@ difLogistic_theta_puri <- function(Data, group, focal.name, type,
     row[flagged] <- 1L
     difPur <- rbind(difPur, row)
 
-    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) {
+      converged <- TRUE
+      break
+    }
     retained_new <- setdiff(seq_len(n_items), flagged)
-    if (length(retained_new) < 2L) break
+    if (length(retained_new) < 2L) {
+      no_anchor <- TRUE
+      break
+    }
     retained <- retained_new
     prev_flagged <- flagged
   }
 
   fit$nrPur <- max(0L, nrow(difPur) - 1L)
-  fit$conv.puri <- iter < max.iter
+  fit$conv.puri <- converged
   fit$convergence <- fit$conv.puri
+  fit$puri.no.anchor <- no_anchor
   rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
   colnames(difPur) <- colnames(Data)
   fit$difPur <- difPur
   fit$purification <- TRUE
+  # the correction is applied at every step, whatever the Combination input
+  fit$puriadjType <- "iterative"
+  # theta of the final fit, so the plot points and bin table match the curves
+  fit$theta <- theta
   fit
+}
+
+# Purification messages for the theta-purification loops when fewer than two
+# items were left undetected, so no anchor set could be formed
+.puri_no_anchor_text <- function(nrPur) {
+  paste0(
+    "In this case, no anchor set could be formed: fewer than two items were not detected as DIF in Step ",
+    nrPur, ", so purification stopped there",
+    if (nrPur == 0) " and the results are based on the matching criterion computed from all items." else "."
+  )
+}
+
+.puri_note_text <- function(fit) {
+  if (isTRUE(fit$puri.no.anchor)) {
+    paste0("Item purification: stopped at Step ", fit$nrPur, ", as no anchor set could be formed")
+  } else {
+    paste("Item purification:", ifelse(fit$purification, "used", "unutilized"))
+  }
 }
 
 # Per-item wrappers bypassing difNLR's global listwise deletion. When matching
@@ -1823,6 +1853,7 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
   difPur <- NULL
   fit <- NULL
   iter <- 0L
+  converged <- no_anchor <- FALSE
 
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
@@ -1849,17 +1880,24 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
     row[flagged] <- 1L
     difPur <- rbind(difPur, row)
 
-    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) {
+      converged <- TRUE
+      break
+    }
     retained_new <- setdiff(seq_len(n_items), flagged)
-    if (length(retained_new) < 2L) break
+    if (length(retained_new) < 2L) {
+      no_anchor <- TRUE
+      break
+    }
     retained <- retained_new
     prev_flagged <- flagged
   }
 
   if (inherits(fit, "difNLR")) {
     fit$nrPur <- max(0L, nrow(difPur) - 1L)
-    fit$conv.puri <- iter < max.iter
+    fit$conv.puri <- converged
     fit$convergence <- fit$conv.puri
+    fit$puri.no.anchor <- no_anchor
     rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
     colnames(difPur) <- colnames(Data)
     fit$difPur <- difPur
@@ -1877,6 +1915,7 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
   difPur <- NULL
   fit <- NULL
   iter <- 0L
+  converged <- no_anchor <- FALSE
 
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
@@ -1902,17 +1941,24 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
     row[flagged] <- 1L
     difPur <- rbind(difPur, row)
 
-    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) {
+      converged <- TRUE
+      break
+    }
     retained_new <- setdiff(seq_len(n_items), flagged)
-    if (length(retained_new) < 2L) break
+    if (length(retained_new) < 2L) {
+      no_anchor <- TRUE
+      break
+    }
     retained <- retained_new
     prev_flagged <- flagged
   }
 
   if (inherits(fit, "ddfMLR")) {
     fit$nrPur <- max(0L, nrow(difPur) - 1L)
-    fit$conv.puri <- iter < max.iter
+    fit$conv.puri <- converged
     fit$convergence <- fit$conv.puri
+    fit$puri.no.anchor <- no_anchor
     rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
     colnames(difPur) <- colnames(Data)
     fit$difPur <- difPur
@@ -1963,6 +2009,7 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
   difPur <- NULL
   fit <- NULL
   iter <- 0L
+  converged <- no_anchor <- FALSE
 
   for (iter in 0:max.iter) {
     theta <- fit_irt_fn(retained)
@@ -1983,16 +2030,23 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
     row[flagged] <- 1L
     difPur <- rbind(difPur, row)
 
-    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) break
+    if (!identical(prev_flagged, NA) && setequal(flagged, prev_flagged)) {
+      converged <- TRUE
+      break
+    }
     retained_new <- setdiff(seq_len(n_items), flagged)
-    if (length(retained_new) < 2L) break
+    if (length(retained_new) < 2L) {
+      no_anchor <- TRUE
+      break
+    }
     retained <- retained_new
     prev_flagged <- flagged
   }
 
   fit$nrPur <- max(0L, nrow(difPur) - 1L)
-  fit$conv.puri <- iter < max.iter
+  fit$conv.puri <- converged
   fit$convergence <- fit$conv.puri
+  fit$puri.no.anchor <- no_anchor
   rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
   colnames(difPur) <- colnames(Data)
   fit$difPur <- difPur
@@ -2289,10 +2343,14 @@ DIF_logistic_summary_table_note <- reactive({
     "hommel" = "Hommel",
     "none" = "none"
   ))
-  res$purification <- paste("Item purification:", ifelse(fit$purification, "used", "unutilized"))
-  res$combination <- ifelse(fit$purification & fit$p.adjust.method != "none",
+  res$purification <- .puri_note_text(fit)
+  # IRT theta purification sets puriadjType to "iterative" (see
+  # difLogistic_theta_puri); otherwise it is the Combination input
+  res$combination <- ifelse(fit$purification & fit$p.adjust.method != "none" &
+                              !isTRUE(fit$puri.no.anchor),
                             paste("Item purification and p-value correction used in",
-                                  input$DIF_logistic_summary_combination, "combination"),
+                                  fit$puriadjType %||% input$DIF_logistic_summary_combination,
+                                  "combination"),
                             "")
   res$threshold <- paste("Detection threshold:", round(thr[length(thr)], 3))
 
@@ -2370,10 +2428,14 @@ output$DIF_logistic_summary_purification_info <- renderPrint({
         while the value of '0' means that the item was not detected as DIF. The first row corresponds to the initial
         classification of the items when all items were used for the calculation of the DIF matching criterion. ")
     nrIter <- model$nrPur
-    cat(
-      "In this case, the convergence was", ifelse(model$convergence, "reached", "NOT reached even"), "after", nrIter,
-      ifelse(nrIter == 1, "iteration.", "iterations.")
-    )
+    if (isTRUE(model$puri.no.anchor)) {
+      cat(.puri_no_anchor_text(nrIter))
+    } else {
+      cat(
+        "In this case, the convergence was", ifelse(model$convergence, "reached", "NOT reached even"), "after", nrIter,
+        ifelse(nrIter == 1, "iteration.", "iterations.")
+      )
+    }
   } else if (input$DIF_logistic_summary_purification & is.null(DIF_logistic_model()$difPur)) {
     cat("No DIF item was detected whatsoever, nothing to show.")
   } else {
@@ -2427,9 +2489,10 @@ DIF_logistic_items_plot <- reactive({
   data <- data.frame(binary())
   item <- input$DIF_logistic_items
 
-  match <- .resolve_logistic_match("DIF_logistic_items_matching", data)
-
   fit <- DIF_logistic_model()
+
+  # with IRT theta purification, use the purified theta the curves were fitted on
+  match <- fit$theta %||% .resolve_logistic_match("DIF_logistic_items_matching", data)
 
   match_label <- switch(input$DIF_logistic_items_matching,
     "uploaded"  = "Uploaded match",
@@ -2535,7 +2598,9 @@ output$DIF_logistic_items_plot_download <- downloadHandler(
 DIF_logistic_items_bin_df <- reactive({
   data <- data.frame(binary())
   grp  <- as.integer(unlist(group()))
-  match <- .resolve_logistic_match("DIF_logistic_items_matching", data)
+  # same matching variable as the plot (purified theta when available)
+  fit <- tryCatch(DIF_logistic_model(), error = function(e) NULL)
+  match <- fit$theta %||% .resolve_logistic_match("DIF_logistic_items_matching", data)
   if (length(match) == 1L && match[1] %in% c("score", "zscore")) {
     match <- if (match[1] == "score") rowSums(data) else as.numeric(scale(rowSums(data)))
   }
@@ -3275,7 +3340,7 @@ DIF_NLR_summary_table_note <- reactive({
     none = "none"
   ))
 
-  res$puri <- paste("Item purification:", ifelse(model$purification == T, "used", "unutilized"))
+  res$puri <- .puri_note_text(model)
   res$thr_rounded <- paste("Detection threshold:", round(thr, 3))
 
   res
@@ -3348,10 +3413,14 @@ output$DIF_NLR_summary_purification_info <- renderPrint({
         while the value of '0' means that the item was not detected as DIF. The first row corresponds to the initial
         classification of the items when all items were used for the calculation of the DIF matching criterion. ")
     nrIter <- model$nrPur
-    cat(
-      "In this case, the convergence was", ifelse(model$conv.puri, "reached", "NOT reached even"), "after", nrIter,
-      ifelse(nrIter == 1, "iteration.", "iterations.")
-    )
+    if (isTRUE(model$puri.no.anchor)) {
+      cat(.puri_no_anchor_text(nrIter))
+    } else {
+      cat(
+        "In this case, the convergence was", ifelse(model$conv.puri, "reached", "NOT reached even"), "after", nrIter,
+        ifelse(nrIter == 1, "iteration.", "iterations.")
+      )
+    }
   } else if (input$DIF_NLR_summary_purification & is.null(DIF_NLR_method()$difPur)) {
     cat("No DIF item was detected whatsoever, nothing to show.")
   } else {
@@ -5658,7 +5727,7 @@ style_coef_names <- function(coef_tab, katex = TRUE) {
 DIF_cumulative_summary_stats <- reactive({
   fit <- DIF_cumulative_method()
 
-  pval <- if (fit$p.adjust.method != "none") {
+  pval <- if (fit$p.adjust.method == "none") {
     fit$pval
   } else {
     fit$adj.pval
@@ -5748,6 +5817,7 @@ DIF_cumulative_summary_table_note <- reactive({
     "none" = "none"
   ))
 
+  res$purification <- .puri_note_text(fit)
   res
 })
 
@@ -5805,10 +5875,14 @@ output$DIF_cumulative_summary_purification_info <- renderPrint({
         while the value of '0' means that the item was not detected as DIF. The first row corresponds to the initial
         classification of the items when all items were used for the calculation of the DIF matching criterion. ")
     nrIter <- fit$nrPur
-    cat(
-      "In this case, the convergence was", ifelse(fit$conv.puri, "reached", "NOT reached even"), "after", nrIter,
-      ifelse(nrIter == 1, "iteration.", "iterations.")
-    )
+    if (isTRUE(fit$puri.no.anchor)) {
+      cat(.puri_no_anchor_text(nrIter))
+    } else {
+      cat(
+        "In this case, the convergence was", ifelse(fit$conv.puri, "reached", "NOT reached even"), "after", nrIter,
+        ifelse(nrIter == 1, "iteration.", "iterations.")
+      )
+    }
   } else if (input$DIF_cumulative_summary_purification & is.null(DIF_cumulative_method()$difPur)) {
     cat("No DIF item was detected whatsoever, nothing to show.")
   } else {
@@ -6337,7 +6411,7 @@ DIF_adjacent_summary_stats <- reactive({
   padj_is_none <- identical(as.character(fit$p.adjust.method)[1], "none") ||
     is.null(fit$p.adjust.method)
 
-  pval <- if (!padj_is_none) {
+  pval <- if (padj_is_none) {
     fit$pval
   } else {
     fit$adj.pval
@@ -6427,7 +6501,7 @@ DIF_adjacent_summary_table_note <- reactive({
     "none" = "none"
   ))
 
-  res$purification <- paste("Item purification:", ifelse(fit$purification, "used", "unutilized"))
+  res$purification <- .puri_note_text(fit)
   res
 })
 
@@ -6483,10 +6557,14 @@ output$DIF_adjacent_summary_purification_info <- renderPrint({
         value of '0' means that the item was not detected as DIF. The first row corresponds to the initial classification of the items when all items
         were used for calculation of the DIF matching criterion. ")
     nrIter <- model$nrPur
-    cat(
-      "In this case, the convergence was", ifelse(model$conv.puri, "reached", "NOT reached even"), "after", nrIter,
-      ifelse(nrIter == 1, "iteration.", "iterations.")
-    )
+    if (isTRUE(model$puri.no.anchor)) {
+      cat(.puri_no_anchor_text(nrIter))
+    } else {
+      cat(
+        "In this case, the convergence was", ifelse(model$conv.puri, "reached", "NOT reached even"), "after", nrIter,
+        ifelse(nrIter == 1, "iteration.", "iterations.")
+      )
+    }
   } else if (input$DIF_adjacent_summary_purification & is.null(DIF_adjacent_model()$difPur)) {
     cat("No DIF items detected whatsoever, nothing to show.")
   } else {
@@ -7106,7 +7184,7 @@ DIF_multinomial_summary_table_note <- reactive({
     "hommel" = "Hommel",
     "none" = "none"
   ))
-  res$purification <- paste("Item purification:", ifelse(fit$purification, "used", "unutilized"))
+  res$purification <- .puri_note_text(fit)
   res
 })
 

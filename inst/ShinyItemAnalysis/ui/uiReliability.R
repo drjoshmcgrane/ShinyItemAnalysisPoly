@@ -138,7 +138,7 @@ uiReliability <-
               "Worst" = "worst",
               "Average" = "average"
             ),
-            selected = "First_last"
+            selected = "firstlast"
           )
         ),
         column(

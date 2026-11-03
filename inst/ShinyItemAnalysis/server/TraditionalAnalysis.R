@@ -233,14 +233,15 @@ output$itemanalysis_table_text <- renderUI({
 
 # ** Traditional item analysis table ######
 itemanalysis_table <- reactive({
-  # get gULI params from UI, if they are NOT different from default, assign NULL
+  # get gULI params from UI, if they are all the ULI defaults (3, 1, 3), assign
+  # NULL so that only the standard ULI is computed
   k <- input$itemanalysis_DDplot_groups_slider
   l <- input$itemanalysis_DDplot_range_slider[[1]]
   u <- input$itemanalysis_DDplot_range_slider[[2]]
 
-  k <- if (k != 3) k
-  l <- if (l != 1) l
-  u <- if (u != 3) u
+  if (k == 3 && l == 1 && u == 3) {
+    k <- l <- u <- NULL
+  }
 
   item_crit_cor <- if (any(crit_wo_val() == "missing", na.rm = TRUE)) {
     NULL

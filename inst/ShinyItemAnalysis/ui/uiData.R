@@ -162,9 +162,9 @@ uiData <- tabPanel(
                     "None" = "",
                     "Double Quote" = '"',
                     "Single Quote" = "'"
-                  )
-                ),
-                selected = '"'
+                  ),
+                  selected = '"'
+                )
               ),
               column(
                 3,

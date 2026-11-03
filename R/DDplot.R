@@ -230,6 +230,13 @@ DDplot <- function(Data, item.names, discrim = "ULI", k = 3, l = 1, u = 3,
       minscore = minscore, maxscore = maxscore,
       k = k, l = l, u = u
     ))
+    # gDiscrim() returns NAs (with a warning) when the score groups cannot form
+    if (all(is.na(disc)) && !any(criterion != "none", na.rm = TRUE)) {
+      stop("ULI unavailable: tied total scores prevent the requested score groups from forming. ",
+        "Try a different number of groups or another discrimination index.",
+        call. = FALSE
+      )
+    }
     i <- 1
   }
   if (discrim == "RIR") {
