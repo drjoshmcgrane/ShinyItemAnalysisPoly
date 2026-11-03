@@ -630,7 +630,8 @@ IRT_binary_summary_coef <- reactive({
       error = function(e) NULL
     )
     if (!is.null(infit_tab)) {
-      tab <- data.frame(tab, infit_tab)
+      # check.names = FALSE keeps "SX2-value" and "p-value" as set above
+      tab <- data.frame(tab, infit_tab, check.names = FALSE)
       colnames(tab)[(ncol(tab) - 1):ncol(tab)] <- c("Outfit MNSQ", "Infit MNSQ")
     }
   }
@@ -656,7 +657,10 @@ IRT_binary_summary_coef <- reactive({
 
 output$IRT_binary_summary_coef <- renderTable(
   {
-    IRT_binary_summary_coef()
+    tab <- IRT_binary_summary_coef()
+    # three decimals, so p-values near a corrected threshold stay readable
+    if (is.numeric(tab$`p-value`)) tab$`p-value` <- ShinyItemAnalysisPoly:::format_pval(tab$`p-value`)
+    tab
   },
   include.rownames = TRUE,
   include.colnames = TRUE
@@ -855,10 +859,16 @@ output$IRT_binary_summary_wrightmap_download <- downloadHandler(
     "fig_IRT_binary_WrightMap.png"
   },
   content = function(file) {
+    args <- IRT_binary_summary_wrightmap_args()
+    # enlarge the figure where needed so that item labels do not overprint
+    size <- do.call(
+      ShinyItemAnalysisPoly:::wright_map_size,
+      c(args, list(width = setting_figures$width, height = setting_figures$height))
+    )
     ggsave(file,
-      plot = do.call(ggWrightMap, IRT_binary_summary_wrightmap_args()), # apply fun args from list
+      plot = do.call(ggWrightMap, args), # apply fun args from list
       device = "png",
-      height = setting_figures$height, width = setting_figures$width,
+      height = size[["height"]], width = size[["width"]],
       dpi = setting_figures$dpi
     )
   }
@@ -1042,7 +1052,9 @@ IRT_binary_items_coef <- reactive({
 
 output$IRT_binary_items_coef <- renderTable(
   {
-    IRT_binary_items_coef()
+    tab <- IRT_binary_items_coef()
+    if (is.numeric(tab$`p-value`)) tab$`p-value` <- ShinyItemAnalysisPoly:::format_pval(tab$`p-value`)
+    tab
   },
   include.rownames = TRUE,
   include.colnames = TRUE

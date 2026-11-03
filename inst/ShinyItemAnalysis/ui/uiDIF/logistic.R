@@ -89,7 +89,7 @@ ui_DIF_logistic <- tabPanel(
             choices = c(
               "not applied" = "simple"
             ),
-            selected = "not applied"
+            selected = "simple"
           )
         )
       ),
@@ -216,7 +216,7 @@ ui_DIF_logistic <- tabPanel(
             choices = c(
               "not applied" = "simple"
             ),
-            selected = "not applied"
+            selected = "simple"
           )
         ),
         column(
@@ -235,7 +235,7 @@ ui_DIF_logistic <- tabPanel(
       uiOutput("DIF_logistic_items_NA_warning"),
       h4("Plot with estimated DIF logistic curve"),
       p("Points represent empirical probabilities of the correct answer with respect to the matching criterion. Their size is determined
-        by the count of respondents at a given level of the matching criterion, split by group membership."),
+        by the count of respondents at a given level of the matching criterion, split by group membership. For an item not detected as DIF, the curves come from the model without group terms, so the curves of the two groups coincide; differences between the groups then show only in the observed points."),
       fluidRow(
         column(
           3,

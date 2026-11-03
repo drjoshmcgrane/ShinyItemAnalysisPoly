@@ -109,13 +109,14 @@ output$itemanalysis_DDplot <- renderPlotly({
   for (i in seq_along(p$x$data)) {
     for (j in seq_along(p$x$data[[i]][["text"]])) {
       p$x$data[[i]][["text"]][j] <-
-        str_remove(
+        str_replace_all(
           str_replace(
             str_remove_all(p$x$data[[i]][["text"]][j], "parameter: |value: "),
             "item",
             "Item"
           ),
-          "(?<=\\.\\d{3}).*"
+          "-?\\d+\\.\\d{4,}", # round values to three decimals
+          function(x) format(round(as.numeric(x), 3), nsmall = 3)
         )
     }
   }
@@ -150,8 +151,11 @@ output$itemanalysis_DDplot_download <- downloadHandler(
 itemanalysis_cronbach_note <- reactive({
   cronbach <- list()
 
-  cronbach$est <- round(psych::alpha(ordinal())$total[1], 2)
-  cronbach$sd <- round(psych::alpha(ordinal())$total[8], 2)
+  a <- psych::alpha(ordinal(), warnings = FALSE)
+  cronbach$est <- round(a$total$raw_alpha, 2)
+  # Feldt 95% confidence interval (total[8] used before is the SD of the
+  # respondents' mean item scores, not a measure of uncertainty in alpha)
+  cronbach$ci <- round(c(a$feldt$lower.ci[[1]], a$feldt$upper.ci[[1]]), 2)
 
   cronbach
 })
@@ -159,10 +163,10 @@ itemanalysis_cronbach_note <- reactive({
 output$itemanalysis_cronbach_note <- renderUI({
   HTML(
     paste0(
-      "<sup>1</sup>Estimate (SD) of Cronbach's \\(\\alpha\\) for the test as a whole is: ",
+      "<sup>1</sup>Estimate of Cronbach's \\(\\alpha\\) for the test as a whole is: ",
       itemanalysis_cronbach_note()$est,
-      " (",
-      itemanalysis_cronbach_note()$sd,
+      ", 95% CI (",
+      paste(itemanalysis_cronbach_note()$ci, collapse = ", "),
       ")."
     )
   )
@@ -197,7 +201,7 @@ output$itemanalysis_table_text <- renderUI({
     "<b>I-C cor.</b>&nbsp;",
     "&ndash; item-criterion correlation, ",
     "<b>ULI</b>&nbsp;",
-    "&ndash; Upper-Lower Index (unavailable when tied total scores prevent the requested score groups from forming; other item statistics remain available), ",
+    "&ndash; Upper-Lower Index (unavailable when many respondents share a total score, e.g. at the floor: respondents tied at a group boundary all go to the higher group, which can leave a score group empty, so try fewer groups; other item statistics remain available), ",
     if (num.groups != 3 | range1 != 1 | range2 != 3) {
       paste0(
         "<b>gULI</b>&nbsp;",
@@ -238,6 +242,9 @@ itemanalysis_table <- reactive({
   k <- input$itemanalysis_DDplot_groups_slider
   l <- input$itemanalysis_DDplot_range_slider[[1]]
   u <- input$itemanalysis_DDplot_range_slider[[2]]
+
+  # wait for the range slider to follow a change in the number of groups
+  validate(need(u <= k, ""))
 
   if (k == 3 && l == 1 && u == 3) {
     k <- l <- u <- NULL
@@ -334,10 +341,10 @@ output$itemanalysis_table_download <- downloadHandler(
     write.csv(data, file)
     write(
       paste0(
-        "Note: Estimate (SD) of Cronbach's alpha for the test as a whole is: ",
+        "Note: Estimate of Cronbach's alpha for the test as a whole is: ",
         itemanalysis_cronbach_note()$est,
-        " (",
-        itemanalysis_cronbach_note()$sd,
+        ", 95% CI (",
+        paste(itemanalysis_cronbach_note()$ci, collapse = ", "),
         ")."
       ),
       file,

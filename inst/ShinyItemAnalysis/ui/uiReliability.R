@@ -161,8 +161,9 @@ uiReliability <-
       p(
         "The estimate of reliability for ", strong("First-last"), ", ", strong("Even-odd"), ", ", strong("Random"), "and",
         strong("Worst"), "is calculated using the Spearman-Brown formula. The confidence interval is based on a
-        confidence interval of correlation using the delta method. The estimate of reliability for the ", strong("Average"),
-        "method is a mean value of sampled reliabilities and the confidence interval is the confidence interval of this mean. "
+        confidence interval of correlation using the Fisher z transformation. The estimate of reliability for the ", strong("Average"),
+        "method is the mean of the split-half reliabilities over the sampled (or, for short tests, all possible) splits. It has
+        no confidence interval here; instead, the table gives the range of these split-half reliabilities (lowest, highest). "
       ),
       uiOutput("reliability_splithalf_table"),
       br(),

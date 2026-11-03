@@ -232,8 +232,9 @@ DDplot <- function(Data, item.names, discrim = "ULI", k = 3, l = 1, u = 3,
     ))
     # gDiscrim() returns NAs (with a warning) when the score groups cannot form
     if (all(is.na(disc)) && !any(criterion != "none", na.rm = TRUE)) {
-      stop("ULI unavailable: tied total scores prevent the requested score groups from forming. ",
-        "Try a different number of groups or another discrimination index.",
+      stop("ULI unavailable with ", k, " groups: many respondents share a total score, and ",
+        "respondents tied at a group boundary all go to the higher group, so a score group is empty. ",
+        "Try fewer groups or another discrimination index.",
         call. = FALSE
       )
     }

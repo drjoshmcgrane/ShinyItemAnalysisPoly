@@ -1662,6 +1662,19 @@ difLogistic_theta_puri <- function(Data, group, focal.name, type,
   }
 }
 
+# When purification did not converge, the flagged set usually cycles; say
+# which items were detected at every step and which changed between steps
+.puri_nonconv_text <- function(pur, item_names) {
+  always <- item_names[colSums(pur) == nrow(pur)]
+  changed <- item_names[colSums(pur) > 0 & colSums(pur) < nrow(pur)]
+  paste0(
+    " The results are those of the last step. Items detected at every step: ",
+    if (length(always)) paste(always, collapse = ", ") else "none",
+    ". Items whose detection changed between steps: ",
+    if (length(changed)) paste(changed, collapse = ", ") else "none", "."
+  )
+}
+
 # Per-item wrappers bypassing difNLR's global listwise deletion. When matching
 # is theta (no NAs in match), regression-based DIF should only drop rows missing
 # on the specific item under test, not globally.
@@ -1961,7 +1974,7 @@ difNLR_theta_puri <- function(Data, group, focal.name, model, type,
     fit$puri.no.anchor <- no_anchor
     rownames(difPur) <- paste0("Step", seq_len(nrow(difPur)) - 1L)
     colnames(difPur) <- colnames(Data)
-    fit$difPur <- difPur
+    fit$ddfPur <- difPur # named as in difNLR::ddfMLR() objects
     fit$purification <- TRUE
   }
   fit
@@ -2435,6 +2448,7 @@ output$DIF_logistic_summary_purification_info <- renderPrint({
         "In this case, the convergence was", ifelse(model$convergence, "reached", "NOT reached even"), "after", nrIter,
         ifelse(nrIter == 1, "iteration.", "iterations.")
       )
+      if (!isTRUE(model$convergence)) cat(.puri_nonconv_text(model$difPur, item_names()))
     }
   } else if (input$DIF_logistic_summary_purification & is.null(DIF_logistic_model()$difPur)) {
     cat("No DIF item was detected whatsoever, nothing to show.")
@@ -2602,7 +2616,14 @@ DIF_logistic_items_bin_df <- reactive({
   fit <- tryCatch(DIF_logistic_model(), error = function(e) NULL)
   match <- fit$theta %||% .resolve_logistic_match("DIF_logistic_items_matching", data)
   if (length(match) == 1L && match[1] %in% c("score", "zscore")) {
-    match <- if (match[1] == "score") rowSums(data) else as.numeric(scale(rowSums(data)))
+    # with purification, the score of the plotted item is the anchor score
+    # plus the item itself, as in the fit and in plotDIFLogistic()
+    used <- seq_len(ncol(data))
+    if (isTRUE(fit$purification) && fit$DIFitems[1] != "No DIF item detected") {
+      used <- union(used[-fit$DIFitems], input$DIF_logistic_items)
+    }
+    ts <- rowSums(data[, used, drop = FALSE])
+    match <- if (match[1] == "score") ts else as.numeric(scale(ts))
   }
   ng <- input$DIF_logistic_observed_groups
   if (is.null(ng) || is.na(ng) || ng < 2L) ng <- 3L
@@ -2692,6 +2713,13 @@ report_DIF_logistic_plot <- reactive({
   data <- data.frame(binary())
 
   fit <- report_DIF_logistic_model()
+  # score and zscore are recomputed in the plot; other matching variables
+  # (theta, uploaded) are passed as the vector the model was fitted on
+  match <- if (fit$match[1] %in% c("score", "zscore")) {
+    fit$match[1]
+  } else {
+    fit$theta %||% .resolve_logistic_match("DIF_logistic_summary_matching", data)
+  }
 
   if (fit$DIFitems[1] != "No DIF item detected") {
     graflist <- vector("list", length = length(fit$DIFitems))
@@ -2700,7 +2728,7 @@ report_DIF_logistic_plot <- reactive({
       g <- ShinyItemAnalysisPoly::plotDIFLogistic(fit,
         item = item,
         item.name = item_names()[item],
-        Data = data, group = group
+        Data = data, group = group, match = match
       )
       g <- g + ggtitle(paste0("DIF logistic plot for ", item_names()[item])) +
         theme(
@@ -3420,6 +3448,7 @@ output$DIF_NLR_summary_purification_info <- renderPrint({
         "In this case, the convergence was", ifelse(model$conv.puri, "reached", "NOT reached even"), "after", nrIter,
         ifelse(nrIter == 1, "iteration.", "iterations.")
       )
+      if (!isTRUE(model$conv.puri)) cat(.puri_nonconv_text(model$difPur, item_names()))
     }
   } else if (input$DIF_NLR_summary_purification & is.null(DIF_NLR_method()$difPur)) {
     cat("No DIF item was detected whatsoever, nothing to show.")
@@ -5882,6 +5911,7 @@ output$DIF_cumulative_summary_purification_info <- renderPrint({
         "In this case, the convergence was", ifelse(fit$conv.puri, "reached", "NOT reached even"), "after", nrIter,
         ifelse(nrIter == 1, "iteration.", "iterations.")
       )
+      if (!isTRUE(fit$conv.puri)) cat(.puri_nonconv_text(fit$difPur, item_names()))
     }
   } else if (input$DIF_cumulative_summary_purification & is.null(DIF_cumulative_method()$difPur)) {
     cat("No DIF item was detected whatsoever, nothing to show.")
@@ -6564,6 +6594,7 @@ output$DIF_adjacent_summary_purification_info <- renderPrint({
         "In this case, the convergence was", ifelse(model$conv.puri, "reached", "NOT reached even"), "after", nrIter,
         ifelse(nrIter == 1, "iteration.", "iterations.")
       )
+      if (!isTRUE(model$conv.puri)) cat(.puri_nonconv_text(model$difPur, item_names()))
     }
   } else if (input$DIF_adjacent_summary_purification & is.null(DIF_adjacent_model()$difPur)) {
     cat("No DIF items detected whatsoever, nothing to show.")
@@ -7339,10 +7370,15 @@ output$DIF_multinomial_summary_purification_info <- renderPrint({
         value of '0' means that the item was not detected as DDF. The first row corresponds to the initial classification of the items when all items
         were used for calculation of the DIF matching criterion. ")
     nrIter <- fit$nrPur
-    cat(
-      "In this case, the convergence was", ifelse(fit$conv.puri, "reached", "NOT reached even"), "after", nrIter,
-      ifelse(nrIter == 1, "iteration.", "iterations.")
-    )
+    if (isTRUE(fit$puri.no.anchor)) {
+      cat(.puri_no_anchor_text(nrIter))
+    } else {
+      cat(
+        "In this case, the convergence was", ifelse(fit$conv.puri, "reached", "NOT reached even"), "after", nrIter,
+        ifelse(nrIter == 1, "iteration.", "iterations.")
+      )
+      if (!isTRUE(fit$conv.puri)) cat(.puri_nonconv_text(fit$ddfPur, item_names()))
+    }
   } else if (input$DIF_multinomial_summary_purification & is.null(DIF_multinomial_method()$ddfPur)) {
     cat("No DDF items detected whatsoever, nothing to show.")
   } else {

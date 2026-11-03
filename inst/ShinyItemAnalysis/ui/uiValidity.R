@@ -44,8 +44,10 @@ uiValidity <-
         "The predictor is plotted on the x-axis. The plot is matched to the ",
         "criterion's scale type: a fitted probability curve for a binary ",
         "criterion, a boxplot across criterion levels for an ordinal one, and ",
-        "a scatterplot with a linear fit for a continuous one. The reported ",
-        "coefficient is repeated beneath the plot title."
+        "a scatterplot with a linear fit for a continuous one. In the ",
+        "scatterplot, point size shows how many respondents have that ",
+        "criterion value. The reported coefficient is repeated beneath the ",
+        "plot title."
       ),
       plotlyOutput("validity_plot"),
       downloadButton(outputId = "DB_validity_plot", label = "Download figure"),

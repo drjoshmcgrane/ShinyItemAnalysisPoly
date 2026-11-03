@@ -17,6 +17,16 @@ na_to_null <- function(x) {
 }
 
 
+# Format p-values for display tables: three decimals, and "< 0.001" below
+# that, so values near a corrected threshold (e.g. Bonferroni) stay readable.
+format_pval <- function(p, digits = 3) {
+  out <- formatC(p, format = "f", digits = digits)
+  out[!is.na(p) & p < 10^-digits] <- paste("<", formatC(10^-digits, format = "f", digits = digits))
+  out[is.na(p)] <- NA
+  out
+}
+
+
 # Marginal reliability of a unidimensional mirt model, integrated over the
 # model's own latent distribution. mirt::marginal_rxx() computes
 # I / (I + var) over N(0, 1), which is only right when the latent variance is

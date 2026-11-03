@@ -138,6 +138,9 @@ plotDIFLogistic <- function(x, item = 1, item.name, group.names = c("Reference",
   } else {
     ANCHOR <- c(1:nrow(res$logitPar))
   }
+  # as in the fit, the total score of an item outside the anchor also
+  # includes the item itself
+  ANCHOR <- union(ANCHOR, i)
 
   # Resolve matching criterion ------------------------------------------------
   match_is_integer_score <- FALSE

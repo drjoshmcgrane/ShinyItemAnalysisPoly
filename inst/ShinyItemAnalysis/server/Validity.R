@@ -848,6 +848,8 @@ validity_plot_scatter_Input <- reactive({
     ) +
     xlab(pred$label) +
     ylab("Criterion variable") +
+    # point size counts the respondents sharing the criterion value
+    labs(size = "Respondents with this\ncriterion value") +
     theme_app() +
     theme(
       legend.position = "inside",
@@ -925,7 +927,7 @@ output$validity_plot <- renderPlotly({
     text <- p$x$data[[i]]$text
     text <- relabel(text, "ts", pred_label)
     text <- relabel(text, "cv", "Criterion variable")
-    text <- relabel(text, "size", "Count")
+    text <- relabel(text, "size", "Respondents with this criterion value")
     text <- relabel(text, "y", "Criterion variable")
     text <- lapply(strsplit(text, split = "<br />"), unique)
     text <- unlist(lapply(text, paste, collapse = "<br />"))

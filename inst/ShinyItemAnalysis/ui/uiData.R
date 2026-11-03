@@ -95,9 +95,9 @@ uiData <- tabPanel(
             (e.g. in Likert scale). The header may contain item names, however, no row names should be included.
             In all data sets, the ", strong("header"), "should be either included or excluded. If you want to
             rename items to the Item and a number of a particular column, uncheck the box ", strong("Keep item names"),
-            "below. Missing values in scored dataset are by default evaluated as 0. If you want to keep them
-            as missing, uncheck the box", strong("Replace missing values by 0"), "below. In that case, total
-            scores for rows with any missing values are going to be NAs as well."
+            "below. Missing values in scored dataset are by default kept as missing. If you want them
+            evaluated as 0, check the box", strong("Replace missing values by 0"), "below. While they are kept
+            as missing, total scores for rows with any missing values are going to be NAs as well."
           )
         )
       ),

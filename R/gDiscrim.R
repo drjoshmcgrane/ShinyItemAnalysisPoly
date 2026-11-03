@@ -28,6 +28,12 @@
 #'   are determined by `l` and `u` parameters, i.e., l-th and u-th
 #'   group where the ordering is defined by increasing total score.
 #'
+#'   The groups are cut at the `k`-quantiles of the total score using
+#'   [base::findInterval()], so respondents tied at a cut point go to the
+#'   higher group (pass `left.open = TRUE` to send them to the lower group).
+#'   When many respondents share a total score, e.g. at the floor of a scale,
+#'   a group can be empty and the index is unavailable.
+#'
 #'   In ordinal items, difficulty is calculated as difference of average score
 #'   divided by range (maximal possible score `maxscore` minus minimal
 #'   possible score `minscore` for given item).

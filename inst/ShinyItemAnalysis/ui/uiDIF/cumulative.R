@@ -206,13 +206,13 @@ ui_DIF_cumulative <- tabPanel(
       ),
       uiOutput("DIF_cumulative_items_na_alert"),
       h4("Plot with estimated expected item score curves"),
-      p("Model-implied expected item score for each group as a function of the matching criterion. Points are mean observed item scores within equal-frequency bins of the matching variable; their size is determined by the number of respondents in each bin."),
+      p("Model-implied expected item score for each group as a function of the matching criterion. Points are mean observed item scores within bins of the matching variable (see Bin style); their size is determined by the number of respondents in each bin. For an item not detected as DIF, the curves come from the model without group terms, so the curves of the two groups coincide; differences between the groups then show only in the observed points."),
       fluidRow(
         column(
           3,
           checkboxInput(
             inputId = "DIF_cumulative_items_show_observed",
-            label = "Show observed proportions",
+            label = "Show observed mean scores",
             value = TRUE
           )
         ),

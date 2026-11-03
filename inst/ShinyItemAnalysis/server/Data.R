@@ -310,12 +310,13 @@ observeEvent(c(input$data_toydata, data_csvdata_current_status$unloaded == 1), {
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # * LOADING DATA FROM CSV FILES ####
 
-# Read a file with one value per item (key, cut-score, minimal or maximal
-# values) with or without a header row. The Header setting is used unless it
-# fails to give one value per item and the opposite setting does. For a valid
-# file in one row or one column, the wrong setting gives 0, 2n, n - 1 or n + 1
-# values, so a valid file cannot be misread.
-read_item_values_csv <- function(path, n_items) {
+# Read an auxiliary file of n values (one per item: key, cut-score, minimal or
+# maximal values; one per respondent: group, criterion, matching variable) with
+# or without a header row. The Header setting is used unless it fails to give n
+# values and the opposite setting does. For a valid file in one row or one
+# column, the wrong setting gives 0, 2n, n - 1 or n + 1 values, so a valid file
+# cannot be misread.
+read_values_csv <- function(path, n_values) {
   read_with <- function(header) {
     read.csv(path,
       header = header,
@@ -324,9 +325,9 @@ read_item_values_csv <- function(path, n_items) {
     )
   }
   values <- read_with(input$data_csvdata_header)
-  if (length(unlist(values)) != n_items) {
+  if (length(unlist(values)) != n_values) {
     other <- tryCatch(read_with(!input$data_csvdata_header), error = function(e) NULL)
-    if (length(unlist(other)) == n_items) values <- other
+    if (length(unlist(other)) == n_values) values <- other
   }
   values
 }
@@ -388,15 +389,15 @@ observeEvent(input$data_upload, {
         } else {
           # otherwise, global minimal value is applied for all items
           csvdata_minimal <- rep(
-            input$data_csvdata_minimal_global,
+            as.numeric(input$data_csvdata_minimal_global),
             ncol(csvdata_data)
           )
         }
       } else {
         # otherwise, value is read from csv file for each item
-        csvdata_minimal <- read_item_values_csv(
+        csvdata_minimal <- as.numeric(unlist(read_values_csv(
           input$data_csvdata_minimal$datapath, ncol(csvdata_data)
-        )
+        )))
       }
 
       # *** Maximal values upload ####
@@ -410,15 +411,15 @@ observeEvent(input$data_upload, {
         } else {
           # otherwise, global maximal value is applied for all items
           csvdata_maximal <- rep(
-            input$data_csvdata_maximal_global,
+            as.numeric(input$data_csvdata_maximal_global),
             ncol(csvdata_data)
           )
         }
       } else {
         # otherwise, value is read from csv file for each item
-        csvdata_maximal <- read_item_values_csv(
+        csvdata_maximal <- as.numeric(unlist(read_values_csv(
           input$data_csvdata_maximal$datapath, ncol(csvdata_data)
-        )
+        )))
       }
     }
 
@@ -451,10 +452,15 @@ observeEvent(input$data_upload, {
       }
     } else {
       # otherwise it is uploaded from the csv file
-      csvdata_key <- read_item_values_csv(
+      csvdata_key <- unlist(read_values_csv(
         data_csvdata_key_in_use$datapath, ncol(csvdata_data)
-      )
-      csvdata_key <- as.character(unlist(csvdata_key))
+      ))
+      # cut-scores are compared numerically with ordinal data
+      csvdata_key <- if (input$data_csvdata_data_type == "ordinal") {
+        as.numeric(paste(csvdata_key))
+      } else {
+        as.character(csvdata_key)
+      }
     }
 
     # ** Loading group ####
@@ -463,11 +469,8 @@ observeEvent(input$data_upload, {
       # otherwise uploaded from the csv file
       csvdata_group <- "missing"
     } else {
-      csvdata_group <- read.csv(
-        input$data_csvdata_group$datapath,
-        header = input$data_csvdata_header,
-        sep = input$data_csvdata_sep,
-        quote = input$data_csvdata_quote
+      csvdata_group <- read_values_csv(
+        input$data_csvdata_group$datapath, nrow(csvdata_data)
       )
       csvdata_group <- unlist(csvdata_group)
     }
@@ -478,11 +481,8 @@ observeEvent(input$data_upload, {
       # otherwise uploaded from the csv file
       csvdata_criterion <- "missing"
     } else {
-      csvdata_criterion <- read.csv(
-        input$data_csvdata_criterion$datapath,
-        header = input$data_csvdata_header,
-        sep = input$data_csvdata_sep,
-        quote = input$data_csvdata_quote
+      csvdata_criterion <- read_values_csv(
+        input$data_csvdata_criterion$datapath, nrow(csvdata_data)
       )
       csvdata_criterion <- unlist(csvdata_criterion)
     }
@@ -493,11 +493,8 @@ observeEvent(input$data_upload, {
       # is set to "missing" otherwise uploaded from the csv file
       csvdata_DIFmatching <- "missing"
     } else {
-      csvdata_DIFmatching <- read.csv(
-        input$data_csvdata_DIFmatching$datapath,
-        header = input$data_csvdata_header,
-        sep = input$data_csvdata_sep,
-        quote = input$data_csvdata_quote
+      csvdata_DIFmatching <- read_values_csv(
+        input$data_csvdata_DIFmatching$datapath, nrow(csvdata_data)
       )
       csvdata_DIFmatching <- unlist(csvdata_DIFmatching)
     }
@@ -525,6 +522,23 @@ observeEvent(input$data_upload, {
 
 
       dataset$binary <- mirt::key2binary(dataset$nominal, csvdata_key)
+
+      # warn when a key value never occurs among the responses (e.g. letter
+      # keys for numerically coded data): such items are scored 0 for everyone
+      unmatched <- which(!mapply(function(x, k) k %in% as.character(x), dataset$nominal, csvdata_key))
+      if (length(unmatched) > 0L) {
+        showModal(
+          modalDialog(
+            title = "Key does not match the responses",
+            paste0(
+              "The key value of item(s) ", paste(colnames(dataset$nominal)[unmatched], collapse = ", "),
+              " does not occur among the responses, so these items are scored 0 for every respondent. ",
+              "Check that the key uses the same codes as the data (e.g., letters or numbers)."
+            ),
+            easyClose = TRUE
+          )
+        )
+      }
       dataset$ordinal <- dataset$binary
       dataset$continuous <- dataset$binary
     } else if (input$data_csvdata_data_type == "ordinal") {

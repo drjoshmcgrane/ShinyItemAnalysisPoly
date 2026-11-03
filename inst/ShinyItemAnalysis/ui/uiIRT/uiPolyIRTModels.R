@@ -175,7 +175,7 @@ uiPolyIRTModels <- tabPanel(
               3,
               checkboxInput(
                 inputId = "IRT_poly_show_observed",
-                label = "Show observed proportions",
+                label = "Show observed mean scores and proportions",
                 value = FALSE
               )
             ),

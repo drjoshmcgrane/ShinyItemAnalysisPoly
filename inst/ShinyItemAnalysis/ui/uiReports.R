@@ -107,7 +107,7 @@ uiReports <-
                     "Pearson" = "pearson",
                     "Spearman" = "spearman"
                   ),
-                  selected = "Polychoric"
+                  selected = "polychoric"
                 )
               )
             )

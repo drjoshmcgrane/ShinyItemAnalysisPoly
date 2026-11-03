@@ -257,13 +257,14 @@ output$IRT_poly_summary_coef_note <- renderUI({
   req(model)
   note <- paste0(
     "Parameter estimates are completed by SX2 item fit statistics ",
-    "(Orlando & Thissen, 2000). SX2 statistics are computed only when ",
-    "no missing data are present."
+    "(Orlando & Thissen, 2000). SX2 statistics are computed from ",
+    "respondents with no missing responses."
   )
-  if (model == "PCM") {
+  # infit and outfit are appended for both Rasch-family models
+  if (model %in% c("RSM", "PCM")) {
     note <- paste0(
       note,
-      " For PCM, infit and outfit mean-square statistics ",
+      " For ", model, ", infit and outfit mean-square statistics ",
       "(Wright & Masters, 1982) are also provided."
     )
   }
@@ -312,7 +313,10 @@ IRT_poly_summary_coef_reactive <- reactive({
 
 output$IRT_poly_summary_coef <- renderTable(
   {
-    IRT_poly_summary_coef_reactive()
+    tab <- IRT_poly_summary_coef_reactive()
+    # three decimals, so p-values near a corrected threshold stay readable
+    if (is.numeric(tab$`p-value`)) tab$`p-value` <- ShinyItemAnalysisPoly:::format_pval(tab$`p-value`)
+    tab
   },
   include.rownames = TRUE,
   include.colnames = TRUE,
@@ -916,7 +920,9 @@ output$IRT_poly_items_coef <- renderTable(
   {
     item <- input$IRT_poly_items
     req(item)
-    IRT_poly_summary_coef_reactive()[item, , drop = FALSE]
+    tab <- IRT_poly_summary_coef_reactive()[item, , drop = FALSE]
+    if (is.numeric(tab$`p-value`)) tab$`p-value` <- ShinyItemAnalysisPoly:::format_pval(tab$`p-value`)
+    tab
   },
   rownames = TRUE, striped = TRUE, na = ""
 )
@@ -929,7 +935,8 @@ output$IRT_poly_items_coef <- renderTable(
 # Helper: check whether RSM is viable (all items same number of categories)
 IRT_poly_rsm_viable <- reactive({
   data <- ordinal()
-  n_cats <- sapply(data, function(x) length(unique(x)))
+  # observed categories only, as in IRT_poly_model_rsm()
+  n_cats <- sapply(data, function(x) length(unique(x[!is.na(x)])))
   length(unique(n_cats)) == 1
 })
 

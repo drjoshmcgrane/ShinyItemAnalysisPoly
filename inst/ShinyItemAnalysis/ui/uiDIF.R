@@ -264,7 +264,7 @@ uiDIF <-
                 choices = c(
                   "not applied" = "simple"
                 ),
-                selected = "not applied"
+                selected = "simple"
               )
             )
           ),
@@ -394,7 +394,7 @@ uiDIF <-
             choices = c(
               "not applied" = "simple"
             ),
-            selected = "not applied"
+            selected = "simple"
           )
         )
       ),
@@ -506,7 +506,7 @@ uiDIF <-
                   "\\(c\\)" = "c",
                   "\\(d\\)" = "d"
                 ),
-                selected = c("\\(a\\)", "b")
+                selected = c("a", "b")
               )
             ),
             column(

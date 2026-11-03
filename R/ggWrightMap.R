@@ -180,7 +180,8 @@ gg_wright_internal <- function(theta, b, binwidth = 0.5, color = "blue",
   g2 <- ggplot(df.b, aes(x = .data$x, y = .data$y, label = .data$item)) +
     geom_text(hjust = 0, vjust = 0.5, na.rm = TRUE) +
     scale_y_continuous(position = "right", limits = c(lim.x.min, lim.x.max)) +
-    scale_x_continuous(limits = c(min(df.b$x), max(df.b$x) + 0.75)) +
+    # a full unit for the last label in a row, as for the others
+    scale_x_continuous(limits = c(min(df.b$x), max(df.b$x) + 1)) +
     ylab(ylab.b) +
     theme_app(base_size = size) +
     theme(
@@ -190,4 +191,23 @@ gg_wright_internal <- function(theta, b, binwidth = 0.5, color = "blue",
     )
 
   list(g1, g2)
+}
+
+
+# Figure size (inches) at which the item labels of ggWrightMap() neither
+# overprint nor run past the item panel: label rows binwidth / 2 logits apart
+# need one line of geom_text()'s default 11 pt text each, and each label in a
+# row one x unit. Never smaller than the requested width and height.
+wright_map_size <- function(theta, b, item.names, binwidth = 0.5,
+                            width = 8, height = 4) {
+  df <- gg_wright_internal(theta, b, binwidth, item.names = item.names)[[2]]$data
+  line <- 1.2 * 11 / 72 # inches per line of text
+  char <- 0.65 * 11 / 72 # approximate inches per character
+  rows <- sort(unique(df$y))
+  gap <- if (length(rows) > 1) min(diff(rows)) else binwidth
+  rng <- diff(range(c(theta, b), na.rm = TRUE)) + 2 * binwidth
+  c(
+    width = max(width, 2 * (max(df$x) * max(nchar(df$item)) * char + 0.7)),
+    height = max(height, rng / gap * line + 0.5)
+  )
 }

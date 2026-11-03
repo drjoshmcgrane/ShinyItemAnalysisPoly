@@ -222,10 +222,12 @@ reliability_splithalf_estimate <- reactive({
   if (is.null(items1)) {
     split <- reliability_splithalf_raw()
 
+    # the mean over splits has no sampling interval here (with few items all
+    # splits are enumerated, each twice), so report the range of the splits
     rel.y <- mean(split$raw)
-    n <- length(split$raw)
-    rel.low <- rel.y - 1.96 * sd(split$raw) / sqrt(n)
-    rel.upp <- rel.y + 1.96 * sd(split$raw) / sqrt(n)
+    rel.low <- min(split$raw)
+    rel.upp <- max(split$raw)
+    interval <- "Range across splits"
   } else {
     df1 <- data[, items1, with = F]
     df2 <- data[, items2, with = F]
@@ -246,12 +248,14 @@ reliability_splithalf_estimate <- reactive({
     rel.y <- 2 * cor.y / (1 + cor.y)
     rel.low <- 2 * cor.low / (1 + cor.low)
     rel.upp <- 2 * cor.upp / (1 + cor.upp)
+    interval <- "Confidence interval"
   }
 
   list(
     rel.y = rel.y,
     rel.low = rel.low,
-    rel.upp = rel.upp
+    rel.upp = rel.upp,
+    interval = interval
   )
 })
 
@@ -259,15 +263,15 @@ reliability_splithalf_estimate <- reactive({
 # ** Split-half correlation and reliability calculation ######
 output$reliability_splithalf_table <- renderTable(
   {
-    tab <- reliability_splithalf_estimate()
-    tab <- unlist(tab)
+    est <- reliability_splithalf_estimate()
     tab <- data.table(
-      "Estimate" = tab[1],
-      "Confidence interval" = paste0(
-        "(", sprintf("%.3f", tab[2]), ", ",
-        sprintf("%.3f", tab[3]), ")"
+      "Estimate" = est$rel.y,
+      interval = paste0(
+        "(", sprintf("%.3f", est$rel.low), ", ",
+        sprintf("%.3f", est$rel.upp), ")"
       )
     )
+    setnames(tab, "interval", est$interval)
 
     tab
   },
