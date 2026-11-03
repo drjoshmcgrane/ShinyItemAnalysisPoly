@@ -235,7 +235,7 @@ ui_DIF_logistic <- tabPanel(
       uiOutput("DIF_logistic_items_NA_warning"),
       h4("Plot with estimated DIF logistic curve"),
       p("Points represent empirical probabilities of the correct answer with respect to the matching criterion. Their size is determined
-        by the count of respondents at a given level of the matching criterion, split by group membership. For an item not detected as DIF, the curves come from the model without group terms, so the curves of the two groups coincide; differences between the groups then show only in the observed points."),
+        by the count of respondents at a given level of the matching criterion, split by group membership. For an item not detected as DIF, the curves come from the model under the null hypothesis of the selected Type: for No DIF vs. Any DIF and No DIF vs. Uniform DIF that model has no group terms, so the curves of the two groups coincide; for Uniform DIF vs. Non-uniform DIF it keeps the uniform group term, so the curves differ by a constant shift on the logit scale. Any further differences between the groups show only in the observed points."),
       fluidRow(
         column(
           3,

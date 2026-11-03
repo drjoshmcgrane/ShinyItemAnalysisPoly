@@ -197,7 +197,7 @@ ui_DIF_adjacent <- tabPanel(
       ),
       uiOutput("DIF_adjacent_items_na_alert"),
       h4("Plot with estimated expected item score curves"),
-      p("Model-implied expected item score for each group as a function of the matching criterion. Points are mean observed item scores within bins of the matching variable (see Bin style); their size is determined by the number of respondents in each bin. For an item not detected as DIF, the curves come from the model without group terms, so the curves of the two groups coincide; differences between the groups then show only in the observed points."),
+      p("Model-implied expected item score for each group as a function of the matching criterion. Points are mean observed item scores within bins of the matching variable (see Bin style); their size is determined by the number of respondents in each bin. For an item not detected as DIF, the curves come from the model under the null hypothesis of the selected Type: for No DIF vs. Any DIF and No DIF vs. Uniform DIF that model has no group terms, so the curves of the two groups coincide; for Uniform DIF vs. Non-uniform DIF it keeps the uniform group term, so the curves differ by a constant shift on the logit scale. Any further differences between the groups show only in the observed points."),
       fluidRow(
         column(
           3,
