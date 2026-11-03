@@ -852,6 +852,8 @@ validity_plot_scatter_Input <- reactive({
     labs(size = "Respondents with this\ncriterion value") +
     theme_app() +
     theme(
+      # theme_app() blanks legend titles; this legend needs one
+      legend.title = element_text(size = rel(0.8)),
       legend.position = "inside",
       legend.justification = c(0.99, 0.01),
       legend.position.inside = c(0.99, 0.01)
