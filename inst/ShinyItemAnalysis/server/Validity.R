@@ -1152,6 +1152,41 @@ output$validity_table <- renderUI({
 })
 
 # ** Interpretation ####
+# Size of the coefficient against the benchmarks for r (Cohen, 1988:
+# .10/.30/.50; Gignac & Szodorai, 2016: .10/.20/.30). Kendall's tau is not
+# placed on them.
+.validity_magnitude_text <- function(est, method) {
+  if (is.na(est)) return("")
+  if (identical(method, "kendall")) {
+    return(paste0("Kendall's <em>&tau;</em> runs smaller than <em>r</em>, so the ",
+                  "benchmarks for <em>r</em> are not applied to it."))
+  }
+  # classify the printed value: round(est, 2) can differ from sprintf at ties
+  # (.295 rounds to .30 but prints as .29)
+  x <- abs(as.numeric(sprintf("%.2f", est)))
+  v <- sub("^(-?)0\\.", "\\1.", sprintf("%.2f", est))
+  size <- function(mid, top) {
+    if (x < .10) "below small" else if (x < mid) "small" else if (x < top) "medium" else "large"
+  }
+  lc <- size(.30, .50)
+  lg <- size(.20, .30)
+  cohen <- "Cohen's (1988) benchmarks for <em>r</em> (small .10, medium .30, large .50)"
+  gs <- "Gignac and Szodorai's (2016) (small .10, medium .20, large .30)"
+  # the lower cut is shared, so "below small" on one is "below small" on both
+  if (lc == "below small") {
+    paste0("In size, a coefficient of ", v, " is below the small benchmark (.10) ",
+           "on both Cohen's (1988) and Gignac and Szodorai's (2016) benchmarks ",
+           "for <em>r</em>.")
+  } else if (lc == lg) {
+    paste0("In size, a coefficient of ", v, " is ", lc, " on both ", cohen,
+           " and ", gs, ".")
+  } else {
+    paste0("In size, a coefficient of ", v, " is ", lc, " on ", cohen, " and ",
+           lg, " on ", gs, ". Where the benchmarks disagree, judge the size ",
+           "against what theory leads you to expect.")
+  }
+}
+
 output$validity_table_interpretation <- renderUI({
   tab <- validity_table_Input()
   pval <- tab$pval
@@ -1181,7 +1216,7 @@ output$validity_table_interpretation <- renderUI({
                    "correlation between <b>", pred_label, "</b> and the criterion ",
                    "variable exists.")
   }
-  HTML(paste(txt1, txt3))
+  HTML(paste(txt1, txt3, .validity_magnitude_text(est, tab$method)))
 })
 
 # ** Validity distractor text ####
